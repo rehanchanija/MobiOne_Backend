@@ -1,6 +1,6 @@
 import { IsEmail, IsNotEmpty, IsOptional, IsString, MinLength } from 'class-validator';
 
-export class RegisterDto {
+export class UpdateProfileDto {
   @IsString()
   @IsNotEmpty()
   name: string;
@@ -10,12 +10,7 @@ export class RegisterDto {
   email: string;
 
   @IsString()
-  @MinLength(6)
-  password: string;
-
-    @IsString()
   @MinLength(10)
-  @IsNotEmpty()
   phone?: string;
 
   @IsString()
@@ -25,14 +20,4 @@ export class RegisterDto {
   @IsString()
   @IsOptional()
   shopDetails?: string;
-}
-
-export class LoginDto {
-  @IsEmail()
-  @IsNotEmpty()
-  email: string;
-
-  @IsString()
-  @IsNotEmpty()
-  password: string;
 }
