@@ -1,11 +1,14 @@
-import { Injectable, UnauthorizedException, NotFoundException } from '@nestjs/common';
-import { JwtService } from '@nestjs/jwt';
+import {
+  Injectable,
+  UnauthorizedException,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
-import * as bcrypt from 'bcrypt';
+import * as bcrypt from 'bcryptjs';
+import { JwtService } from '@nestjs/jwt';
 import { User, UserDocument } from '../schemas/user.schema';
-import { LoginDto, RegisterDto } from './dto/auth.dto';
-import { UpdateProfileDto } from './dto/update-profile.dto';
+import { RegisterDto } from './dto/auth.dto';
 
 @Injectable()
 export class AuthService {
@@ -14,104 +17,114 @@ export class AuthService {
     private jwtService: JwtService,
   ) {}
 
-  async register(registerDto: RegisterDto) {
-    const { email, password, name, shopName, shopDetails, phone } = registerDto;
-
-    // Check if user exists
-    const existingUser = await this.userModel.findOne({ email });
+  // REGISTER
+  async register(
+    registerDto: RegisterDto,
+  ) {
+    const existingUser = await this.userModel.findOne({ email: registerDto.email }).exec();
     if (existingUser) {
       throw new UnauthorizedException('User already exists');
     }
+    
 
-    // Hash password
-    const hashedPassword = await bcrypt.hash(password, 10);
+    const hashedPassword = await bcrypt.hash(registerDto.password, 10);
 
-    // Create new user with shop details
-    const userData = {
-      email,
-      name,
+    const newUser = new this.userModel({
+      name: registerDto.name,
+      email: registerDto.email,
       password: hashedPassword,
-      phone,
-      ...(shopName && { shopName }), // Only include if shopName is provided
-      ...(shopDetails && { shopDetails }), // Only include if shopDetails is provided
-    };
+      phone: registerDto.phone,
+      shopName: registerDto.shopName,
+      shopDetails: registerDto.shopDetails,
+    });
 
-    const user = await this.userModel.create(userData);
+    await newUser.save();
+    const payload = { sub: newUser._id, email: newUser.email };
+    const token = await this.jwtService.signAsync(payload,{
+      secret: process.env.JWT_SECRET || 'mySecretKey',
+      expiresIn: '1h',
 
-    // Generate token
-    const token = this.jwtService.sign({ userId: user._id });
-
-    // Return user data including shop details
+    });
     return {
-      user: {
-        id: user._id,
-        email: user.email,
-        name: user.name,
-        phone: user.phone,
-        shopName: user.shopName || null,
-        shopDetails: user.shopDetails || null,
-      },
-      token,
+      message: 'User registered successfully',
+      userId: newUser._id,
+      token
+      
     };
   }
 
-  async login(loginDto: LoginDto) {
-    const { email, password } = loginDto;
+  // LOGIN
+  async login(email: string, password: string) {
+    const user = await this.userModel.findOne({ email }).exec();
+    if (!user) throw new UnauthorizedException('Invalid credentials');
 
-    // Find user
-    const user = await this.userModel.findOne({ email });
-    if (!user) {
-      throw new UnauthorizedException('Invalid credentials');
-    }
-
-    // Verify password
     const isPasswordValid = await bcrypt.compare(password, user.password);
-    if (!isPasswordValid) {
+    if (!isPasswordValid)
       throw new UnauthorizedException('Invalid credentials');
-    }
 
-    // Generate token
-    const token = this.jwtService.sign({ userId: user._id });
+    const payload = { sub: user._id, email: user.email };
+    const token = await this.jwtService.signAsync(payload,{
+      secret: process.env.JWT_SECRET || 'mySecretKey',
+      expiresIn: '1h',
 
+    });
     return {
+      access_token: token,
       user: {
         id: user._id,
-        email: user.email,
         name: user.name,
+        email: user.email,
+        phone: user.phone,
+        shopName: user.shopName,
+        shopDetails: user.shopDetails,
       },
-      token,
     };
   }
-   async getProfile(userId: string): Promise<User> {
-      const user = await this.userModel
-        .findById(userId)
-        .select('-password')
-        .exec();
+
+  // GET PROFILE
+  async getProfile(userId: string) {
+    console.log('Getting profile for userId:', userId);
+    
+    if (!userId) {
+      console.error('No userId provided to getProfile');
+      throw new UnauthorizedException('No user ID provided');
+    }
+
+    try {
+      const user = await this.userModel.findById(userId).select('-password').exec();
       
       if (!user) {
+        console.error('User not found for ID:', userId);
         throw new NotFoundException('User not found');
       }
       
+      console.log('Found user:', { id: user._id, email: user.email });
       return user;
-    }
-  
-    async updateProfile(userId: string, updateProfileDto: UpdateProfileDto): Promise<User> {
-      const user = await this.userModel
-        .findByIdAndUpdate(
-          userId, 
-          { 
-            ...updateProfileDto,
-            updatedAt: new Date()
-          },
-          { new: true }
-        )
-        .select('-password')
-        .exec();
-  
-      if (!user) {
-        throw new NotFoundException('User not found');
+    } catch (error) {
+      console.error('Error in getProfile:', error);
+      if (error.name === 'CastError') {
+        throw new NotFoundException('Invalid user ID format');
       }
-  
-      return user;
+      throw error;
     }
+  }
+
+  // UPDATE PROFILE
+  async updateProfile(
+    userId: string,
+    data: Partial<User>,
+  ) {
+    const updatedUser = await this.userModel
+      .findByIdAndUpdate(
+        userId,
+        { ...data, updatedAt: new Date() },
+        { new: true },
+      )
+      .select('-password')
+      .exec();
+
+    if (!updatedUser) throw new NotFoundException('User not found');
+
+    return updatedUser;
+  }
 }

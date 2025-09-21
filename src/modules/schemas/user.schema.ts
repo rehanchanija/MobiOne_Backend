@@ -14,20 +14,22 @@ export class User {
   @Prop({ required: true })
   password: string;
 
-  @Prop({ required: false })
-  phone: string;
+  @Prop()
+  phone?: string;
 
-  @Prop({ required: false, default: null })
-  shopName: string;
+  @Prop({ default: null })
+  shopName?: string;
 
-  @Prop({ required: false, default: null })
-  shopDetails: string;
+  @Prop({ default: null })
+  shopDetails?: string;
 
   @Prop({ default: Date.now })
   createdAt: Date;
 
   @Prop({ default: Date.now })
   updatedAt: Date;
+
+  _id:string
 }
 
 export const UserSchema = SchemaFactory.createForClass(User);
