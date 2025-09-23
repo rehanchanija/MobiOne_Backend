@@ -68,6 +68,7 @@ export class ProductsService {
     const created = await this.productModel.create({
       name: dto.name,
       description: dto.description ?? '',
+      barcode: dto.barcode ?? undefined,
       price: dto.price,
       stock: dto.stock,
       brand: brandObjectId,

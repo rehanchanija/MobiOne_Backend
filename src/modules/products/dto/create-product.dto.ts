@@ -8,6 +8,10 @@ export class CreateProductDto {
   @IsOptional()
   description?: string;
 
+  @IsOptional()
+  @MinLength(3)
+  barcode?: string;
+
   @IsNumber()
   @IsPositive()
   price: number;

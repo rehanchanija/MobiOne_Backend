@@ -11,6 +11,10 @@ export class UpdateProductDto extends PartialType(CreateProductDto) {
   description?: string;
 
   @IsOptional()
+  @MinLength(3)
+  barcode?: string;
+
+  @IsOptional()
   @IsNumber()
   @IsPositive()
   price?: number;

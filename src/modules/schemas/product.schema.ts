@@ -11,6 +11,9 @@ export class Product {
   @Prop({ default: '' })
   description: string;
 
+  @Prop({ trim: true })
+  barcode?: string;
+
   @Prop({ required: true, min: 0 })
   price: number;
 
