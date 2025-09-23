@@ -1,8 +1,8 @@
 import { PartialType } from '@nestjs/mapped-types';
-import { CreateBrandDto } from './create-brand.dto';
+import { CreateCategoryDto } from './create-category.dto';
 import { IsOptional, MinLength } from 'class-validator';
 
-export class UpdateBrandDto extends PartialType(CreateBrandDto) {
+export class UpdateCategoryDto extends PartialType(CreateCategoryDto) {
   @IsOptional()
   @MinLength(2)
   name?: string;

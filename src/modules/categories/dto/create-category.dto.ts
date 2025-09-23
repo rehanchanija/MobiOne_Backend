@@ -1,6 +1,6 @@
 import { IsNotEmpty, MinLength } from 'class-validator';
 
-export class CreateBrandDto {
+export class CreateCategoryDto {
   @IsNotEmpty()
   @MinLength(2)
   name: string;

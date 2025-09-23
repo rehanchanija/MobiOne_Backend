@@ -1,24 +1,24 @@
-import { IsMongoId, IsNotEmpty, IsNumber, IsOptional, IsString, Min } from 'class-validator';
+import { IsMongoId, IsNotEmpty, IsNumber, IsOptional, IsPositive, Min, MinLength } from 'class-validator';
 
 export class CreateProductDto {
-  @IsString()
   @IsNotEmpty()
+  @MinLength(2)
   name: string;
 
+  @IsOptional()
+  description?: string;
+
   @IsNumber()
-  @Min(0)
+  @IsPositive()
   price: number;
 
   @IsNumber()
   @Min(0)
   stock: number;
 
+  // Note: brandId is omitted for brand-scoped creation; use params
   @IsMongoId()
-  brandId: string;
-
-  @IsString()
-  @IsOptional()
-  details?: string;
+  categoryId: string;
 }
 
 

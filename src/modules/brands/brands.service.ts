@@ -1,44 +1,48 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
-import { Brand, BrandDocument } from './brand.schema';
+import { Model, Types } from 'mongoose';
+import { Brand, BrandDocument } from '../schemas/brand.schema';
 import { CreateBrandDto } from './dto/create-brand.dto';
 import { UpdateBrandDto } from './dto/update-brand.dto';
 
 @Injectable()
 export class BrandsService {
-  constructor(
-    @InjectModel(Brand.name)
-    private readonly brandModel: Model<BrandDocument>,
-  ) {}
+  constructor(@InjectModel(Brand.name) private readonly brandModel: Model<BrandDocument>) {}
 
-  async create(payload: CreateBrandDto): Promise<Brand> {
-    const created = await this.brandModel.create(payload);
-    return created.toObject();
+  private ensureObjectId(id: string): Types.ObjectId {
+    if (!Types.ObjectId.isValid(id)) throw new BadRequestException('Invalid id');
+    return new Types.ObjectId(id);
   }
 
-  async findAll(): Promise<Brand[]> {
-    return this.brandModel.find().sort({ createdAt: -1 }).lean();
+  async findAll() {
+    return this.brandModel.find().lean();
   }
 
-  async findOne(id: string): Promise<Brand> {
-    const item = await this.brandModel.findById(id).lean();
-    if (!item) throw new NotFoundException('Brand not found');
-    return item;
+  async create(dto: CreateBrandDto) {
+    const name = dto.name.trim();
+    return (await this.brandModel.create({ name })).toObject();
   }
 
-  async update(id: string, payload: UpdateBrandDto): Promise<Brand> {
-    const updated = await this.brandModel
-      .findByIdAndUpdate(id, { $set: payload }, { new: true })
-      .lean();
+  async update(id: string, dto: UpdateBrandDto) {
+    const _id = this.ensureObjectId(id);
+    const updated = await this.brandModel.findByIdAndUpdate(
+      _id,
+      { $set: { ...(dto.name ? { name: dto.name.trim() } : {}) } },
+      { new: true },
+    );
     if (!updated) throw new NotFoundException('Brand not found');
-    return updated;
+    return updated.toObject();
   }
 
-  async remove(id: string): Promise<{ deleted: boolean }> {
-    const res = await this.brandModel.findByIdAndDelete(id);
-    if (!res) throw new NotFoundException('Brand not found');
-    return { deleted: true };
+  async count() {
+    return { total: await this.brandModel.countDocuments({}) };
+  }
+
+  async remove(id: string) {
+    const _id = this.ensureObjectId(id);
+    const deleted = await this.brandModel.findByIdAndDelete(_id);
+    if (!deleted) throw new NotFoundException('Brand not found');
+    return { success: true };
   }
 }
 

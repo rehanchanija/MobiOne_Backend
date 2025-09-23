@@ -1,61 +1,104 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
-import { Product, ProductDocument } from './schemas/product.schema';
+import { Product, ProductDocument } from '../schemas/product.schema';
+import { Brand, BrandDocument } from '../schemas/brand.schema';
+import { Category, CategoryDocument } from '../schemas/category.schema';
 import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
 
 @Injectable()
 export class ProductsService {
   constructor(
-    @InjectModel(Product.name)
-    private readonly productModel: Model<ProductDocument>,
+    @InjectModel(Product.name) private readonly productModel: Model<ProductDocument>,
+    @InjectModel(Brand.name) private readonly brandModel: Model<BrandDocument>,
+    @InjectModel(Category.name) private readonly categoryModel: Model<CategoryDocument>,
   ) {}
 
-  async create(payload: CreateProductDto): Promise<Product> {
+  private ensureObjectId(id: string, field: string): Types.ObjectId {
+    if (!Types.ObjectId.isValid(id)) {
+      throw new BadRequestException(`${field} is invalid`);
+    }
+    return new Types.ObjectId(id);
+  }
+
+  async getAllBrands() {
+    return this.brandModel.find().lean();
+  }
+
+  async getProductsByBrand(brandId: string) {
+    const brandObjectId = this.ensureObjectId(brandId, 'brandId');
+    const brand = await this.brandModel.findById(brandObjectId).lean();
+    if (!brand) throw new NotFoundException('Brand not found');
+    return this.productModel.find({ brand: brandObjectId }).lean();
+  }
+
+  async createProductUnderBrand(brandId: string, dto: CreateProductDto) {
+    const brandObjectId = this.ensureObjectId(brandId, 'brandId');
+
+    const brand = await this.brandModel.findById(brandObjectId);
+    if (!brand) throw new NotFoundException('Brand not found');
+
+    const categoryObjectId = this.ensureObjectId(dto.categoryId, 'categoryId');
+    const category = await this.categoryModel.findById(categoryObjectId);
+    if (!category) throw new NotFoundException('Category not found');
+
     const created = await this.productModel.create({
-      ...payload,
-      brandId: new Types.ObjectId(payload.brandId),
+      name: dto.name,
+      description: dto.description ?? '',
+      price: dto.price,
+      stock: dto.stock,
+      brand: brandObjectId,
+      category: categoryObjectId,
     });
+
+    await this.brandModel.updateOne({ _id: brandObjectId }, { $addToSet: { products: created._id } });
+    await this.categoryModel.updateOne({ _id: categoryObjectId }, { $addToSet: { products: created._id } });
+
     return created.toObject();
   }
 
-  async findAll(): Promise<Product[]> {
-    return this.productModel.find().sort({ createdAt: -1 }).lean();
+  async getProductById(id: string) {
+    const objectId = this.ensureObjectId(id, 'id');
+    const product = await this.productModel.findById(objectId).populate('brand').populate('category').lean();
+    if (!product) throw new NotFoundException('Product not found');
+    return product;
   }
 
-  async findByBrand(brandId: string): Promise<Product[]> {
-    if (!Types.ObjectId.isValid(brandId)) {
-      throw new BadRequestException('Invalid brand id');
+  async updateProduct(id: string, dto: UpdateProductDto) {
+    const objectId = this.ensureObjectId(id, 'id');
+
+    const update: any = { ...dto };
+
+    if (dto.brandId) {
+      const brandObjectId = this.ensureObjectId(dto.brandId, 'brandId');
+      const brand = await this.brandModel.findById(brandObjectId);
+      if (!brand) throw new NotFoundException('Brand not found');
+      update.brand = brandObjectId;
+      delete update.brandId;
     }
-    return this.productModel.find({ brandId }).sort({ createdAt: -1 }).lean();
-  }
 
-  async findOne(id: string): Promise<Product> {
-    const item = await this.productModel.findById(id).lean();
-    if (!item) throw new NotFoundException('Product not found');
-    return item;
-  }
-
-  async update(id: string, payload: UpdateProductDto): Promise<Product> {
-    const update: any = { ...payload };
-    if (payload.brandId) {
-      if (!Types.ObjectId.isValid(payload.brandId)) {
-        throw new BadRequestException('Invalid brand id');
-      }
-      update.brandId = new Types.ObjectId(payload.brandId);
+    if (dto.categoryId) {
+      const categoryObjectId = this.ensureObjectId(dto.categoryId, 'categoryId');
+      const category = await this.categoryModel.findById(categoryObjectId);
+      if (!category) throw new NotFoundException('Category not found');
+      update.category = categoryObjectId;
+      delete update.categoryId;
     }
-    const updated = await this.productModel
-      .findByIdAndUpdate(id, { $set: update }, { new: true })
-      .lean();
-    if (!updated) throw new NotFoundException('Product not found');
-    return updated;
+
+    const product = await this.productModel.findByIdAndUpdate(objectId, update, { new: true });
+    if (!product) throw new NotFoundException('Product not found');
+    return product.toObject();
   }
 
-  async remove(id: string): Promise<{ deleted: boolean }> {
-    const res = await this.productModel.findByIdAndDelete(id);
-    if (!res) throw new NotFoundException('Product not found');
-    return { deleted: true };
+  async deleteProduct(id: string) {
+    const objectId = this.ensureObjectId(id, 'id');
+    const deleted = await this.productModel.findByIdAndDelete(objectId);
+    if (!deleted) throw new NotFoundException('Product not found');
+    // cleanup references
+    await this.brandModel.updateOne({ _id: deleted.brand }, { $pull: { products: deleted._id } });
+    await this.categoryModel.updateOne({ _id: deleted.category }, { $pull: { products: deleted._id } });
+    return { success: true };
   }
 }
 
