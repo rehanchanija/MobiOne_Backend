@@ -46,6 +46,16 @@ export class BrandsController {
   async createProductUnderBrand(@Param('id') id: string, @Body() dto: CreateProductDto) {
     return this.productsService.createProductUnderBrand(id, dto);
   }
+
+  @Get(':id/stock')
+  async getBrandStockTotal(@Param('id') id: string) {
+    return this.productsService.getTotalStockByBrand(id);
+  }
+
+  @Get(':id/product-count')
+  async getBrandProductCount(@Param('id') id: string) {
+    return this.productsService.getProductCountByBrand(id);
+  }
 }
 
 

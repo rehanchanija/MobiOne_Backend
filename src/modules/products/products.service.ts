@@ -33,6 +33,28 @@ export class ProductsService {
     return this.productModel.find({ brand: brandObjectId }).lean();
   }
 
+  async getTotalStockByBrand(brandId: string) {
+    const brandObjectId = this.ensureObjectId(brandId, 'brandId');
+    const brand = await this.brandModel.findById(brandObjectId).lean();
+    if (!brand) throw new NotFoundException('Brand not found');
+
+    const result = await this.productModel.aggregate([
+      { $match: { brand: brandObjectId } },
+      { $group: { _id: null, total: { $sum: '$stock' } } },
+    ]);
+
+    const total = result[0]?.total ?? 0;
+    return { stockTotal: total };
+  }
+
+  async getProductCountByBrand(brandId: string) {
+    const brandObjectId = this.ensureObjectId(brandId, 'brandId');
+    const brand = await this.brandModel.findById(brandObjectId).lean();
+    if (!brand) throw new NotFoundException('Brand not found');
+    const count = await this.productModel.countDocuments({ brand: brandObjectId });
+    return { productCount: count };
+  }
+
   async createProductUnderBrand(brandId: string, dto: CreateProductDto) {
     const brandObjectId = this.ensureObjectId(brandId, 'brandId');
 
