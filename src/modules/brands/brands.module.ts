@@ -6,9 +6,11 @@ import { BrandsService } from './brands.service';
 import { Product, ProductSchema } from '../schemas/product.schema';
 import { Brand, BrandSchema } from '../schemas/brand.schema';
 import { Category, CategorySchema } from '../schemas/category.schema';
+import { AuthModule } from '../auth/auth.module';
 
 @Module({
   imports: [
+    AuthModule,
     MongooseModule.forFeature([
       { name: Product.name, schema: ProductSchema },
       { name: Brand.name, schema: BrandSchema },

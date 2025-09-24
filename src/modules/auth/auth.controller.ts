@@ -31,7 +31,6 @@ export class AuthController {
     return this.authService.login(email, password);
   }
 
-  // GET PROFILE (JWT protected)
   @UseGuards(AuthGuard)
  @Get('profile')
 getProfile(@Request() req) {
