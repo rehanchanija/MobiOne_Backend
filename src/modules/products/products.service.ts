@@ -26,6 +26,14 @@ export class ProductsService {
     return this.brandModel.find().lean();
   }
 
+  async listAll(q?: string) {
+    const filter: any = {};
+    if (q) {
+      filter.name = { $regex: q, $options: 'i' };
+    }
+    return this.productModel.find(filter).populate('brand').lean();
+  }
+
   async getProductsByBrand(brandId: string) {
     const brandObjectId = this.ensureObjectId(brandId, 'brandId');
     const brand = await this.brandModel.findById(brandObjectId).lean();

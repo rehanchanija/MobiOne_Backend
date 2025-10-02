@@ -7,6 +7,7 @@ import { AuthModule } from './modules/auth/auth.module';
 import { BrandsModule } from './modules/brands/brands.module';
 import { ProductsModule } from './modules/products/products.module';
 import { CategoriesModule } from './modules/categories/categories.module';
+import { BillsModule } from './modules/bills/bills.module';
 
 
 
@@ -20,6 +21,7 @@ import { CategoriesModule } from './modules/categories/categories.module';
     BrandsModule,
     ProductsModule,
     CategoriesModule,
+    BillsModule,
   ],
   controllers: [AppController],
   providers: [AppService],
