@@ -34,16 +34,13 @@ export class AuthController {
   @UseGuards(AuthGuard)
  @Get('profile')
 getProfile(@Request() req) {
-  console.log('req.user', req.user);
-  return this.authService.getProfile(req.user.userId); // align with JwtStrategy.validate
-  //  ✅ userId comes from validate()
+  return this.authService.getProfile(req.user); // align with JwtStrategy.validate
 }
 
 
-  // UPDATE PROFILE (JWT protected)
   @UseGuards(AuthGuard)
   @Put('profile')
   async updateProfile(@Request() req, @Body() body: any) {
-    return this.authService.updateProfile(req.user.userId, body);
+    return this.authService.updateProfile(req.user, body);
   }
 }

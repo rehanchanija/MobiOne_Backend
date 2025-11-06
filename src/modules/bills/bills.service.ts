@@ -4,6 +4,8 @@ import { Model, Types } from 'mongoose';
 import { Bill, BillDocument } from '../schemas/bill.schema';
 import { Customer, CustomerDocument } from '../schemas/customer.schema';
 import { Product, ProductDocument } from '../schemas/product.schema';
+import { TransactionsService } from '../transactions/transactions.service';
+import { TransactionType } from '../schemas/transaction.schema';
 
 interface CreateCustomerDto { name: string; phone?: string; address?: string }
 interface BillItemInput { productId: string; quantity: number; }
@@ -22,6 +24,7 @@ export class BillsService {
     @InjectModel(Bill.name) private billModel: Model<BillDocument>,
     @InjectModel(Customer.name) private customerModel: Model<CustomerDocument>,
     @InjectModel(Product.name) private productModel: Model<ProductDocument>,
+    private readonly transactionsService: TransactionsService,
   ) {}
 
   async createCustomer(dto: CreateCustomerDto) {
@@ -32,7 +35,7 @@ export class BillsService {
     return this.customerModel.find().sort({ createdAt: -1 }).lean();
   }
 
-  async createBill(dto: CreateBillDto) {
+  async createBill(dto: CreateBillDto, userId: string) {
     if (!dto.items?.length) throw new BadRequestException('Items are required');
 
     let customerId: string;
@@ -67,6 +70,7 @@ export class BillsService {
 
     const bill = await this.billModel.create({
       customer: customerId,
+      userId: new Types.ObjectId(userId),
       items,
       subtotal,
       discount,
@@ -76,6 +80,22 @@ export class BillsService {
       status,
     });
 
+    // Create transaction record
+    const billId = (bill._id as Types.ObjectId).toString();
+    await this.transactionsService.create(
+      {
+        billId,
+        type: TransactionType.BILL_CREATED,
+        amount: total,
+        metadata: {
+          items: items.length,
+          paymentMethod: dto.paymentMethod,
+          status,
+        },
+      },
+      userId
+    );
+
     // decrement stock
     await Promise.all(
       items.map(i => this.productModel.updateOne({ _id: i.product }, { $inc: { stock: -i.quantity } }))
@@ -84,12 +104,80 @@ export class BillsService {
     return bill;
   }
 
-  async getBill(id: string) {
-    return this.billModel.findById(id).populate('customer').populate('items.product').lean();
+  async getBill(id: string): Promise<BillDocument | null> {
+    return this.billModel.findById(id).populate('customer').populate('items.product').lean() as Promise<BillDocument | null>;
   }
 
-  async listBills() {
-    return this.billModel.find().sort({ createdAt: -1 }).populate('customer').lean();
+  async listBills(): Promise<BillDocument[]> {
+    return this.billModel.find().sort({ createdAt: -1 }).populate('customer').lean() as Promise<BillDocument[]>;
+  }
+
+  async updateBill(id: string, updateData: Partial<CreateBillDto>, userId: string) {
+    const bill = await this.billModel.findById(id);
+    if (!bill) {
+      throw new NotFoundException('Bill not found');
+    }
+
+    // Update bill logic here
+    const updatedBill = await this.billModel.findByIdAndUpdate(
+      id,
+      { $set: updateData },
+      { new: true }
+    ).exec() as BillDocument | null;
+
+    if (!updatedBill) {
+      throw new NotFoundException('Bill not found after update');
+    }
+
+    // Create transaction record for update
+    await this.transactionsService.create(
+      {
+        billId: id,
+        type: TransactionType.BILL_UPDATED,
+        amount: updatedBill.total,
+        metadata: {
+          previousAmount: bill.total,
+          updatedAmount: updatedBill.total,
+          changes: updateData,
+        },
+      },
+      userId
+    );
+
+    return updatedBill;
+  }
+
+  async deleteBill(id: string, userId: string) {
+    const bill = await this.billModel.findById(id);
+    if (!bill) {
+      throw new NotFoundException('Bill not found');
+    }
+
+    // Create transaction record before deletion
+    await this.transactionsService.create(
+      {
+        billId: id,
+        type: TransactionType.BILL_DELETED,
+        amount: bill.total,
+        metadata: {
+          deletedAt: new Date(),
+          billData: bill.toObject(),
+        },
+      },
+      userId
+    );
+
+    // Increment product stock back
+    await Promise.all(
+      bill.items.map(item => 
+        this.productModel.updateOne(
+          { _id: item.product },
+          { $inc: { stock: item.quantity } }
+        )
+      )
+    );
+
+    return this.billModel.findByIdAndDelete(id);
   }
 }
 

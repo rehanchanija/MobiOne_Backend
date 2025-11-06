@@ -1,6 +1,8 @@
-import { Body, Controller, Get, Param, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Patch, Post, UseGuards } from '@nestjs/common';
 import { BillsService } from './bills.service';
 import { AuthGuard } from '../auth/auth.guard';
+import { User } from '../schemas/user.schema';
+import { GetUser } from '../auth/get-user.decorator';
 
 @UseGuards(AuthGuard)
 @Controller('bills')
@@ -27,9 +29,10 @@ export class BillsController {
       discount?: number;
       paymentMethod: 'Cash' | 'Online';
       amountPaid: number;
-    }
+    },
+    @GetUser() user: User
   ) {
-    return this.billsService.createBill(body);
+    return this.billsService.createBill(body, user._id.toString());
   }
 
   @Get(':id')
@@ -40,6 +43,20 @@ export class BillsController {
   @Get()
   listBills() {
     return this.billsService.listBills();
+  }
+
+  @Patch(':id')
+  updateBill(
+    @Param('id') id: string,
+    @Body() updateData: any,
+    @GetUser() user: User
+  ) {
+    return this.billsService.updateBill(id, updateData, user._id.toString());
+  }
+
+  @Delete(':id')
+  deleteBill(@Param('id') id: string, @GetUser() user: User) {
+    return this.billsService.deleteBill(id, user._id.toString());
   }
 }
 

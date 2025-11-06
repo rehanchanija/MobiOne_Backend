@@ -1,7 +1,20 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document, Types } from 'mongoose';
 
-export type BillDocument = Bill & Document;
+export type BillDocument = Document & {
+  _id: Types.ObjectId;
+  customer: Types.ObjectId;
+  userId: Types.ObjectId;
+  items: BillItem[];
+  subtotal: number;
+  discount: number;
+  total: number;
+  paymentMethod: string;
+  amountPaid: number;
+  status: string;
+  createdAt: Date;
+  updatedAt: Date;
+};
 
 export class BillItem {
   @Prop({ type: Types.ObjectId, ref: 'Product', required: true })
@@ -20,6 +33,9 @@ const BillItemSchema = SchemaFactory.createForClass(BillItem);
 export class Bill {
   @Prop({ type: Types.ObjectId, ref: 'Customer', required: true })
   customer: Types.ObjectId;
+
+  @Prop({ type: Types.ObjectId, ref: 'User', required: true })
+  userId: Types.ObjectId;
 
   @Prop({ type: [BillItemSchema], default: [] })
   items: BillItem[];
