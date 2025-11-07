@@ -57,7 +57,7 @@ export class BillsService {
       if (!p) throw new NotFoundException(`Product not found: ${i.productId}`);
       const price = p.price;
       subtotal += price * i.quantity;
-      return { product: p, quantity: i.quantity };
+            return { product: new Types.ObjectId(i.productId), quantity: i.quantity, price };
     });
 
     const discount = Math.max(0, dto.discount || 0);
