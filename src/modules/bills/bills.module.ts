@@ -6,12 +6,10 @@ import { Bill, BillSchema } from '../schemas/bill.schema';
 import { Customer, CustomerSchema } from '../schemas/customer.schema';
 import { Product, ProductSchema } from '../schemas/product.schema';
 import { AuthModule } from '../auth/auth.module';
-import { TransactionsModule } from '../transactions/transactions.module';
 
 @Module({
   imports: [
     AuthModule,
-    TransactionsModule,
     MongooseModule.forFeature([
       { name: Bill.name, schema: BillSchema },
       { name: Customer.name, schema: CustomerSchema },

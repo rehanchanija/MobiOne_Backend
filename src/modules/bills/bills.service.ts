@@ -4,8 +4,6 @@ import { Model, Types } from 'mongoose';
 import { Bill, BillDocument } from '../schemas/bill.schema';
 import { Customer, CustomerDocument } from '../schemas/customer.schema';
 import { Product, ProductDocument } from '../schemas/product.schema';
-import { TransactionsService } from '../transactions/transactions.service';
-import { TransactionType } from '../schemas/transaction.schema';
 
 interface CreateCustomerDto { name: string; phone?: string; address?: string }
 interface BillItemInput { productId: string; quantity: number; }
@@ -24,7 +22,6 @@ export class BillsService {
     @InjectModel(Bill.name) private billModel: Model<BillDocument>,
     @InjectModel(Customer.name) private customerModel: Model<CustomerDocument>,
     @InjectModel(Product.name) private productModel: Model<ProductDocument>,
-    private readonly transactionsService: TransactionsService,
   ) {}
 
   async createCustomer(dto: CreateCustomerDto) {
@@ -60,7 +57,7 @@ export class BillsService {
       if (!p) throw new NotFoundException(`Product not found: ${i.productId}`);
       const price = p.price;
       subtotal += price * i.quantity;
-      return { product: new Types.ObjectId(i.productId), quantity: i.quantity, price };
+      return { product: p, quantity: i.quantity };
     });
 
     const discount = Math.max(0, dto.discount || 0);
@@ -79,22 +76,6 @@ export class BillsService {
       amountPaid,
       status,
     });
-
-    // Create transaction record
-    const billId = (bill._id as Types.ObjectId).toString();
-    await this.transactionsService.create(
-      {
-        billId,
-        type: TransactionType.BILL_CREATED,
-        amount: total,
-        metadata: {
-          items: items.length,
-          paymentMethod: dto.paymentMethod,
-          status,
-        },
-      },
-      userId
-    );
 
     // decrement stock
     await Promise.all(
@@ -129,21 +110,6 @@ export class BillsService {
       throw new NotFoundException('Bill not found after update');
     }
 
-    // Create transaction record for update
-    await this.transactionsService.create(
-      {
-        billId: id,
-        type: TransactionType.BILL_UPDATED,
-        amount: updatedBill.total,
-        metadata: {
-          previousAmount: bill.total,
-          updatedAmount: updatedBill.total,
-          changes: updateData,
-        },
-      },
-      userId
-    );
-
     return updatedBill;
   }
 
@@ -152,20 +118,6 @@ export class BillsService {
     if (!bill) {
       throw new NotFoundException('Bill not found');
     }
-
-    // Create transaction record before deletion
-    await this.transactionsService.create(
-      {
-        billId: id,
-        type: TransactionType.BILL_DELETED,
-        amount: bill.total,
-        metadata: {
-          deletedAt: new Date(),
-          billData: bill.toObject(),
-        },
-      },
-      userId
-    );
 
     // Increment product stock back
     await Promise.all(
