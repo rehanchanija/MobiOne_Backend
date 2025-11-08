@@ -90,7 +90,12 @@ export class BillsService {
   }
 
   async listBills(): Promise<BillDocument[]> {
-    return this.billModel.find().sort({ createdAt: -1 }).populate('customer').lean() as Promise<BillDocument[]>;
+    return this.billModel
+      .find()
+      .sort({ createdAt: -1 })
+      .populate('customer')
+      .populate('items.product')
+      .lean() as Promise<BillDocument[]>;
   }
 
   async updateBill(id: string, updateData: Partial<CreateBillDto>, userId: string) {

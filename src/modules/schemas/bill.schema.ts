@@ -16,6 +16,7 @@ export type BillDocument = Document & {
   updatedAt: Date;
 };
 
+@Schema()
 export class BillItem {
   @Prop({ type: Types.ObjectId, ref: 'Product', required: true })
   product: Types.ObjectId;
@@ -29,7 +30,7 @@ export class BillItem {
 
 const BillItemSchema = SchemaFactory.createForClass(BillItem);
 
-@Schema({ timestamps: true })
+@Schema({ timestamps: true})
 export class Bill {
   @Prop({ type: Types.ObjectId, ref: 'Customer', required: true })
   customer: Types.ObjectId;
