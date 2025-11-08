@@ -86,7 +86,7 @@ export class BillsService {
   }
 
   async getBill(id: string): Promise<BillDocument | null> {
-    return this.billModel.findById(id).populate('customer').populate('items.product').lean() as Promise<BillDocument | null>;
+    return this.billModel.findById(id).populate('customer').populate({ path: 'items', populate: { path: 'product' } }).lean() as Promise<BillDocument | null>;
   }
 
   async listBills(): Promise<BillDocument[]> {
@@ -94,7 +94,7 @@ export class BillsService {
       .find()
       .sort({ createdAt: -1 })
       .populate('customer')
-      .populate('items.product')
+      .populate({ path: 'items', populate: { path: 'product' } })
       .lean() as Promise<BillDocument[]>;
   }
 
