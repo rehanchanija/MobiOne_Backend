@@ -31,6 +31,12 @@ export class AuthController {
     return this.authService.login(email, password);
   }
 
+  // REFRESH TOKEN
+  @Post('refresh')
+  async refresh(@Body('refreshToken') refreshToken: string) {
+    return this.authService.refresh(refreshToken);
+  }
+
   @UseGuards(AuthGuard)
  @Get('profile')
 getProfile(@Request() req) {

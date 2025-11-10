@@ -63,13 +63,22 @@ export class AuthService {
       throw new UnauthorizedException('Invalid credentials');
 
     const payload = { sub: user._id, email: user.email };
-    const token = await this.jwtService.signAsync(payload,{
+    const accessToken = await this.jwtService.signAsync(payload, {
       secret: process.env.JWT_SECRET || 'mySecretKey',
-      expiresIn: '1h',
-
+      expiresIn: '15m',
     });
+
+    const refreshToken = await this.jwtService.signAsync(payload, {
+      secret: process.env.JWT_REFRESH_SECRET || 'myRefreshSecret',
+      expiresIn: '90d',
+    });
+
+    // Store latest refresh token for rotation
+    await this.userModel.updateOne({ _id: user._id }, { refreshToken });
+
     return {
-      access_token: token,
+      access_token: accessToken,
+      refresh_token: refreshToken,
       user: {
         id: user._id,
         name: user.name,
@@ -79,6 +88,37 @@ export class AuthService {
         shopDetails: user.shopDetails,
       },
     };
+  }
+
+  async refresh(refreshToken: string) {
+    try {
+      const payload = await this.jwtService.verifyAsync(refreshToken, {
+        secret: process.env.JWT_REFRESH_SECRET || 'myRefreshSecret',
+      });
+
+      const user = await this.userModel.findById(payload.sub).exec();
+      if (!user || user.refreshToken !== refreshToken) {
+        throw new UnauthorizedException('Invalid refresh token');
+      }
+
+      const newAccessToken = await this.jwtService.signAsync(
+        { sub: user._id, email: user.email },
+        { secret: process.env.JWT_SECRET || 'mySecretKey', expiresIn: '15m' }
+      );
+
+      const newRefreshToken = await this.jwtService.signAsync(
+        { sub: user._id, email: user.email },
+        { secret: process.env.JWT_REFRESH_SECRET || 'myRefreshSecret', expiresIn: '90d' }
+      );
+
+      // rotate refresh token
+      user.refreshToken = newRefreshToken;
+      await user.save();
+
+      return { access_token: newAccessToken, refresh_token: newRefreshToken };
+    } catch (e) {
+      throw new UnauthorizedException('Could not refresh token');
+    }
   }
 
   // GET PROFILE
