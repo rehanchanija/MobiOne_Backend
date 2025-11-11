@@ -5,6 +5,7 @@ import { Bill, BillDocument } from '../schemas/bill.schema';
 import { Customer, CustomerDocument } from '../schemas/customer.schema';
 import { Product, ProductDocument } from '../schemas/product.schema';
 import { User, UserDocument } from '../schemas/user.schema';
+import { NotificationsService } from '../notifications/notifications.service';
 
 interface CreateCustomerDto { name: string; phone?: string; address?: string }
 interface BillItemInput { productId: string; quantity: number; }
@@ -24,6 +25,7 @@ export class BillsService {
     @InjectModel(Customer.name) private customerModel: Model<CustomerDocument>,
     @InjectModel(Product.name) private productModel: Model<ProductDocument>,
     @InjectModel(User.name) private userModel: Model<UserDocument>,
+    private notificationsService: NotificationsService,
   ) {}
 
   async createCustomer(dto: CreateCustomerDto) {
@@ -120,6 +122,54 @@ export class BillsService {
     await Promise.all(
       items.map(i => this.productModel.updateOne({ _id: i.product }, { $inc: { stock: -i.quantity } }))
     );
+
+    // Create BILL_CREATED notification with complete bill data
+    try {
+      const customer = await this.customerModel.findById(customerId).lean();
+      
+      // Get product details for items
+      const itemsWithDetails = await Promise.all(
+        items.map(async (item) => {
+          const product = await this.productModel.findById(item.product).lean();
+          return {
+            productId: item.product.toString(),
+            productName: product?.name || 'Unknown Product',
+            quantity: item.quantity,
+            price: item.price,
+            description: product?.description || '',
+          };
+        })
+      );
+
+      // Calculate remaining amount
+      const remainingAmount = Math.max(0, total - amountPaid);
+
+      await this.notificationsService.createNotification({
+        userId,
+        type: 'BILL_CREATED',
+        title: 'New Bill Created',
+        message: `Bill ${billNumber} created for ${customer?.name || 'Customer'} - Amount: ${total.toFixed(2)}`,
+        data: {
+          billId: bill._id.toString(),
+          billNumber,
+          customerName: customer?.name || 'Unknown',
+          customerPhone: customer?.phone || '',
+          totalAmount: total,
+          amountPaid,
+          remainingAmount,
+          paymentStatus: status,
+          paymentMethod: dto.paymentMethod,
+          itemCount: items.length,
+          items: itemsWithDetails,
+          subtotal,
+          discount,
+          createdAt: new Date().toISOString(),
+        },
+      });
+    } catch (err) {
+      // Log error but don't fail bill creation if notification fails
+      console.error('Failed to create BILL_CREATED notification:', err);
+    }
 
     return bill;
   }

@@ -5,6 +5,7 @@ import { BrandsService } from './brands.service';
 import { CreateBrandDto } from './dto/create-brand.dto';
 import { UpdateBrandDto } from './dto/update-brand.dto';
 import { AuthGuard } from '../auth/auth.guard';
+import { GetUser } from '../auth/get-user.decorator';
 
 @UseGuards(AuthGuard)
 @Controller('brands')
@@ -25,18 +26,22 @@ export class BrandsController {
   }
 
   @Post()
-  async createBrand(@Body() dto: CreateBrandDto) {
-    return this.brandsService.create(dto);
+  async createBrand(@Body() dto: CreateBrandDto, @GetUser() user: any) {
+    return this.brandsService.create(dto, user._id?.toString());
   }
 
   @Put(':id')
-  async updateBrand(@Param('id') id: string, @Body() dto: UpdateBrandDto) {
-    return this.brandsService.update(id, dto);
+  async updateBrand(
+    @Param('id') id: string,
+    @Body() dto: UpdateBrandDto,
+    @GetUser() user: any,
+  ) {
+    return this.brandsService.update(id, dto, user._id?.toString());
   }
 
   @Delete(':id')
-  async deleteBrand(@Param('id') id: string) {
-    return this.brandsService.remove(id);
+  async deleteBrand(@Param('id') id: string, @GetUser() user: any) {
+    return this.brandsService.remove(id, user._id?.toString());
   }
 
   @Get(':id/products')
@@ -45,8 +50,12 @@ export class BrandsController {
   }
 
   @Post(':id/products')
-  async createProductUnderBrand(@Param('id') id: string, @Body() dto: CreateProductDto) {
-    return this.productsService.createProductUnderBrand(id, dto);
+  async createProductUnderBrand(
+    @Param('id') id: string,
+    @Body() dto: CreateProductDto,
+    @GetUser() user: any,
+  ) {
+    return this.productsService.createProductUnderBrand(id, dto, user._id?.toString());
   }
 
   @Get(':id/stock')

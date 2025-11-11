@@ -5,9 +5,11 @@ import { ProductsService } from './products.service';
 import { Product, ProductSchema } from '../schemas/product.schema';
 import { Brand, BrandSchema } from '../schemas/brand.schema';
 import { Category, CategorySchema } from '../schemas/category.schema';
+import { NotificationsModule } from '../notifications/notifications.module';
 
 @Module({
   imports: [
+    NotificationsModule,
     MongooseModule.forFeature([
       { name: Product.name, schema: ProductSchema },
       { name: Brand.name, schema: BrandSchema },

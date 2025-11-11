@@ -6,6 +6,7 @@ import { Brand, BrandDocument } from '../schemas/brand.schema';
 import { Category, CategoryDocument } from '../schemas/category.schema';
 import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
+import { NotificationsService } from '../notifications/notifications.service';
 
 @Injectable()
 export class ProductsService {
@@ -13,6 +14,7 @@ export class ProductsService {
     @InjectModel(Product.name) private readonly productModel: Model<ProductDocument>,
     @InjectModel(Brand.name) private readonly brandModel: Model<BrandDocument>,
     @InjectModel(Category.name) private readonly categoryModel: Model<CategoryDocument>,
+    private notificationsService: NotificationsService,
   ) {}
 
   private ensureObjectId(id: string, field: string): Types.ObjectId {
@@ -63,7 +65,7 @@ export class ProductsService {
     return { productCount: count };
   }
 
-  async createProductUnderBrand(brandId: string, dto: CreateProductDto) {
+  async createProductUnderBrand(brandId: string, dto: CreateProductDto, userId?: string) {
     const brandObjectId = this.ensureObjectId(brandId, 'brandId');
 
     const brand = await this.brandModel.findById(brandObjectId);
@@ -86,6 +88,27 @@ export class ProductsService {
     await this.brandModel.updateOne({ _id: brandObjectId }, { $addToSet: { products: created._id } });
     await this.categoryModel.updateOne({ _id: categoryObjectId }, { $addToSet: { products: created._id } });
 
+    // Create PRODUCT_CREATED notification
+    if (userId) {
+      try {
+        await this.notificationsService.createNotification({
+          userId,
+          type: 'PRODUCT_CREATED',
+          title: 'New Product Created',
+          message: `Product "${created.name}" has been created under brand "${brand.name}"`,
+          data: {
+            productId: (created._id as Types.ObjectId).toString(),
+            productName: created.name,
+            brandId: (brand._id as Types.ObjectId).toString(),
+            brandName: brand.name,
+          },
+        });
+      } catch (err) {
+        // Log error but don't fail product creation if notification fails
+        console.error('Failed to create PRODUCT_CREATED notification:', err);
+      }
+    }
+
     return created.toObject();
   }
 
@@ -96,7 +119,7 @@ export class ProductsService {
     return product;
   }
 
-  async updateProduct(id: string, dto: UpdateProductDto) {
+  async updateProduct(id: string, dto: UpdateProductDto, userId?: string) {
     const objectId = this.ensureObjectId(id, 'id');
 
     const update: any = { ...dto };
@@ -119,16 +142,63 @@ export class ProductsService {
 
     const product = await this.productModel.findByIdAndUpdate(objectId, update, { new: true });
     if (!product) throw new NotFoundException('Product not found');
+
+    // Create PRODUCT_UPDATED notification
+    if (userId) {
+      try {
+        const brand = await this.brandModel.findById(product.brand).lean();
+        await this.notificationsService.createNotification({
+          userId,
+          type: 'PRODUCT_UPDATED',
+          title: 'Product Updated',
+          message: `Product "${product.name}" has been updated`,
+          data: {
+            productId: (product._id as Types.ObjectId).toString(),
+            productName: product.name,
+            brandId: brand ? (brand._id as Types.ObjectId).toString() : undefined,
+            brandName: brand?.name,
+          },
+        });
+      } catch (err) {
+        // Log error but don't fail product update if notification fails
+        console.error('Failed to create PRODUCT_UPDATED notification:', err);
+      }
+    }
+
     return product.toObject();
   }
 
-  async deleteProduct(id: string) {
+  async deleteProduct(id: string, userId?: string) {
     const objectId = this.ensureObjectId(id, 'id');
     const deleted = await this.productModel.findByIdAndDelete(objectId);
     if (!deleted) throw new NotFoundException('Product not found');
+    
     // cleanup references
     await this.brandModel.updateOne({ _id: deleted.brand }, { $pull: { products: deleted._id } });
     await this.categoryModel.updateOne({ _id: deleted.category }, { $pull: { products: deleted._id } });
+
+    // Create PRODUCT_DELETED notification
+    if (userId) {
+      try {
+        const brand = await this.brandModel.findById(deleted.brand).lean();
+        await this.notificationsService.createNotification({
+          userId,
+          type: 'PRODUCT_DELETED',
+          title: 'Product Deleted',
+          message: `Product "${deleted.name}" has been deleted`,
+          data: {
+            productId: (deleted._id as Types.ObjectId).toString(),
+            productName: deleted.name,
+            brandId: brand ? (brand._id as Types.ObjectId).toString() : undefined,
+            brandName: brand?.name,
+          },
+        });
+      } catch (err) {
+        // Log error but don't fail product deletion if notification fails
+        console.error('Failed to create PRODUCT_DELETED notification:', err);
+      }
+    }
+
     return { success: true };
   }
 }
