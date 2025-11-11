@@ -5,6 +5,7 @@ import { BillsController } from './bills.controller';
 import { Bill, BillSchema } from '../schemas/bill.schema';
 import { Customer, CustomerSchema } from '../schemas/customer.schema';
 import { Product, ProductSchema } from '../schemas/product.schema';
+import { User, UserSchema } from '../schemas/user.schema';
 import { AuthModule } from '../auth/auth.module';
 
 @Module({
@@ -14,6 +15,7 @@ import { AuthModule } from '../auth/auth.module';
       { name: Bill.name, schema: BillSchema },
       { name: Customer.name, schema: CustomerSchema },
       { name: Product.name, schema: ProductSchema },
+      { name: User.name, schema: UserSchema },
     ]),
   ],
   controllers: [BillsController],

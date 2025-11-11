@@ -4,6 +4,7 @@ import { Model, Types } from 'mongoose';
 import { Bill, BillDocument } from '../schemas/bill.schema';
 import { Customer, CustomerDocument } from '../schemas/customer.schema';
 import { Product, ProductDocument } from '../schemas/product.schema';
+import { User, UserDocument } from '../schemas/user.schema';
 
 interface CreateCustomerDto { name: string; phone?: string; address?: string }
 interface BillItemInput { productId: string; quantity: number; }
@@ -22,6 +23,7 @@ export class BillsService {
     @InjectModel(Bill.name) private billModel: Model<BillDocument>,
     @InjectModel(Customer.name) private customerModel: Model<CustomerDocument>,
     @InjectModel(Product.name) private productModel: Model<ProductDocument>,
+    @InjectModel(User.name) private userModel: Model<UserDocument>,
   ) {}
 
   async createCustomer(dto: CreateCustomerDto) {
@@ -30,6 +32,39 @@ export class BillsService {
 
   async listCustomers() {
     return this.customerModel.find().sort({ createdAt: -1 }).lean();
+  }
+
+  // Generate bill number: shopname-YYYYMMDD-serialnumber (e.g., raza-20251111-01)
+  private async generateBillNumber(userId: string): Promise<string> {
+    // Get user to retrieve shop name
+    const user = await this.userModel.findById(userId).lean();
+    if (!user || !user.shopName) {
+      throw new BadRequestException('User shop name not found');
+    }
+
+    // Get today's date in YYYYMMDD format
+    const today = new Date();
+    const dateStr = today.toISOString().slice(0, 10).replace(/-/g, '');
+
+    // Find the count of bills created today for this user
+    const startOfDay = new Date(today);
+    startOfDay.setHours(0, 0, 0, 0);
+    
+    const endOfDay = new Date(today);
+    endOfDay.setHours(23, 59, 59, 999);
+
+    const billCountToday = await this.billModel.countDocuments({
+      userId: new Types.ObjectId(userId),
+      createdAt: { $gte: startOfDay, $lte: endOfDay },
+    });
+
+    // Serial number starts from 01
+    const serialNumber = String(billCountToday + 1).padStart(2, '0');
+
+    // Format: shopname-YYYYMMDD-serialnumber
+    const billNumber = `${user.shopName.toLowerCase()}-${dateStr}-${serialNumber}`;
+
+    return billNumber;
   }
 
   async createBill(dto: CreateBillDto, userId: string) {
@@ -65,9 +100,13 @@ export class BillsService {
     const amountPaid = Math.max(0, dto.amountPaid || 0);
     const status: 'Paid' | 'Pending' = amountPaid >= total ? 'Paid' : 'Pending';
 
+    // Generate bill number
+    const billNumber = await this.generateBillNumber(userId);
+
     const bill = await this.billModel.create({
       customer: customerId,
       userId: new Types.ObjectId(userId),
+      billNumber,
       items,
       subtotal,
       discount,

@@ -38,6 +38,9 @@ export class Bill {
   @Prop({ type: Types.ObjectId, ref: 'User', required: true })
   userId: Types.ObjectId;
 
+  @Prop({ required: true, unique: true, index: true })
+  billNumber: string;
+
   @Prop({ type: [BillItemSchema], default: [] })
   items: BillItem[];
 
