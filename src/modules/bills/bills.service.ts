@@ -89,13 +89,40 @@ export class BillsService {
     return this.billModel.findById(id).populate('customer').populate({ path: 'items', populate: { path: 'product' } }).lean() as Promise<BillDocument | null>;
   }
 
-  async listBills(): Promise<BillDocument[]> {
+  async listBills(userId?: string): Promise<BillDocument[]> {
+    const query = userId ? { userId: new Types.ObjectId(userId) } : {};
     return this.billModel
-      .find()
+      .find(query)
       .sort({ createdAt: -1 })
       .populate('customer')
       .populate({ path: 'items', populate: { path: 'product' } })
       .lean() as Promise<BillDocument[]>;
+  }
+
+  async listBillsPaginated(page: number, limit: number, userId: string): Promise<{ bills: BillDocument[]; total: number; page: number; limit: number; totalPages: number }> {
+    const skip = (page - 1) * limit;
+
+    const [bills, total] = await Promise.all([
+      this.billModel
+        .find({ userId: new Types.ObjectId(userId) })
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limit)
+        .populate('customer')
+        .populate({ path: 'items', populate: { path: 'product' } })
+        .lean(),
+      this.billModel.countDocuments({ userId: new Types.ObjectId(userId) }),
+    ]);
+
+    const totalPages = Math.ceil(total / limit);
+
+    return {
+      bills: bills as BillDocument[],
+      total,
+      page,
+      limit,
+      totalPages,
+    };
   }
 
   async updateBill(id: string, updateData: Partial<CreateBillDto>, userId: string) {

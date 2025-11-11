@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
 import { BillsService } from './bills.service';
 import { AuthGuard } from '../auth/auth.guard';
 import { User } from '../schemas/user.schema';
@@ -35,14 +35,20 @@ export class BillsController {
     return this.billsService.createBill(body, user._id.toString());
   }
 
+  @Get()
+  listBills(
+    @GetUser() user: User,
+    @Query('page') page?: string,
+    @Query('limit') limit?: string
+  ) {
+    const pageNum = Math.max(1, parseInt(page || '1') || 1);
+    const limitNum = Math.max(1, Math.min(100, parseInt(limit || '10') || 10));
+    return this.billsService.listBillsPaginated(pageNum, limitNum, user._id.toString());
+  }
+
   @Get(':id')
   getBill(@Param('id') id: string) {
     return this.billsService.getBill(id);
-  }
-
-  @Get()
-  listBills() {
-    return this.billsService.listBills();
   }
 
   @Patch(':id')
