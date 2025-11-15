@@ -140,6 +140,10 @@ export class ProductsService {
       delete update.categoryId;
     }
 
+    // Get old product to check stock change
+    const oldProduct = await this.productModel.findById(objectId).lean();
+    if (!oldProduct) throw new NotFoundException('Product not found');
+
     const product = await this.productModel.findByIdAndUpdate(objectId, update, { new: true });
     if (!product) throw new NotFoundException('Product not found');
 
@@ -162,6 +166,30 @@ export class ProductsService {
       } catch (err) {
         // Log error but don't fail product update if notification fails
         console.error('Failed to create PRODUCT_UPDATED notification:', err);
+      }
+    }
+
+    // Check if stock was updated and is now at or below 5
+    if (dto.stock !== undefined && product.stock <= 5 && oldProduct.stock > 5) {
+      if (userId) {
+        try {
+          const brand = await this.brandModel.findById(product.brand).lean();
+          await this.notificationsService.createNotification({
+            userId,
+            type: 'LOW_STOCK',
+            title: '⚠️ Low Stock Alert',
+            message: `Only ${product.stock} units remaining for "${product.name}"`,
+            data: {
+              productId: (product._id as Types.ObjectId).toString(),
+              productName: product.name,
+              stock: product.stock,
+              brandId: brand ? (brand._id as Types.ObjectId).toString() : undefined,
+              brandName: brand?.name,
+            },
+          });
+        } catch (err) {
+          console.error('Failed to create LOW_STOCK notification:', err);
+        }
       }
     }
 

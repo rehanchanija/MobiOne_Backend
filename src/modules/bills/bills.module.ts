@@ -5,6 +5,7 @@ import { BillsController } from './bills.controller';
 import { Bill, BillSchema } from '../schemas/bill.schema';
 import { Customer, CustomerSchema } from '../schemas/customer.schema';
 import { Product, ProductSchema } from '../schemas/product.schema';
+import { Brand, BrandSchema } from '../schemas/brand.schema';
 import { User, UserSchema } from '../schemas/user.schema';
 import { AuthModule } from '../auth/auth.module';
 import { NotificationsModule } from '../notifications/notifications.module';
@@ -17,6 +18,7 @@ import { NotificationsModule } from '../notifications/notifications.module';
       { name: Bill.name, schema: BillSchema },
       { name: Customer.name, schema: CustomerSchema },
       { name: Product.name, schema: ProductSchema },
+      { name: Brand.name, schema: BrandSchema },
       { name: User.name, schema: UserSchema },
     ]),
   ],

@@ -18,7 +18,14 @@ export class NotificationsController {
   ) {
     const pageNum = Math.max(1, parseInt(page || '1') || 1);
     const limitNum = Math.max(1, Math.min(100, parseInt(limit || '10') || 10));
-    return this.notificationsService.getUserNotifications(user._id.toString(), pageNum, limitNum);
+    
+    console.log('📌 GET /notifications called for user:', user._id, 'page:', pageNum, 'limit:', limitNum);
+    
+    const result = await this.notificationsService.getUserNotifications(user._id.toString(), pageNum, limitNum);
+    
+    console.log('✅ Returning notifications:', result.notifications.length, 'unreadCount:', result.unreadCount);
+    
+    return result;
   }
 
   // Get unread count

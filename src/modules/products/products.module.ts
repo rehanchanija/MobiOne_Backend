@@ -6,9 +6,11 @@ import { Product, ProductSchema } from '../schemas/product.schema';
 import { Brand, BrandSchema } from '../schemas/brand.schema';
 import { Category, CategorySchema } from '../schemas/category.schema';
 import { NotificationsModule } from '../notifications/notifications.module';
+import { AuthModule } from '../auth/auth.module';
 
 @Module({
   imports: [
+    AuthModule,
     NotificationsModule,
     MongooseModule.forFeature([
       { name: Product.name, schema: ProductSchema },

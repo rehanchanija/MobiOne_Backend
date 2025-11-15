@@ -28,10 +28,12 @@ export class NotificationsService {
   }
 
   // Get all notifications for a user
-  async getUserNotifications(userId: string, page: number = 1, limit: number = 10): Promise<{ notifications: NotificationDocument[]; total: number; page: number; limit: number; totalPages: number }> {
+  async getUserNotifications(userId: string, page: number = 1, limit: number = 10): Promise<{ notifications: NotificationDocument[]; total: number; unreadCount: number; page: number; limit: number; totalPages: number }> {
     const skip = (page - 1) * limit;
 
-    const [notifications, total] = await Promise.all([
+    console.log('📌 getUserNotifications called with userId:', userId, 'page:', page, 'limit:', limit);
+
+    const [notifications, total, unreadCount] = await Promise.all([
       this.notificationModel
         .find({ userId: new Types.ObjectId(userId) })
         .sort({ createdAt: -1 })
@@ -39,13 +41,17 @@ export class NotificationsService {
         .limit(limit)
         .lean(),
       this.notificationModel.countDocuments({ userId: new Types.ObjectId(userId) }),
+      this.notificationModel.countDocuments({ userId: new Types.ObjectId(userId), read: false }),
     ]);
 
     const totalPages = Math.ceil(total / limit);
 
+    console.log('✅ Found notifications:', notifications.length, 'total:', total, 'unreadCount:', unreadCount);
+
     return {
       notifications: notifications as NotificationDocument[],
       total,
+      unreadCount,
       page,
       limit,
       totalPages,

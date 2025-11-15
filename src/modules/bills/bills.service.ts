@@ -4,6 +4,7 @@ import { Model, Types } from 'mongoose';
 import { Bill, BillDocument } from '../schemas/bill.schema';
 import { Customer, CustomerDocument } from '../schemas/customer.schema';
 import { Product, ProductDocument } from '../schemas/product.schema';
+import { Brand, BrandDocument } from '../schemas/brand.schema';
 import { User, UserDocument } from '../schemas/user.schema';
 import { NotificationsService } from '../notifications/notifications.service';
 
@@ -24,6 +25,7 @@ export class BillsService {
     @InjectModel(Bill.name) private billModel: Model<BillDocument>,
     @InjectModel(Customer.name) private customerModel: Model<CustomerDocument>,
     @InjectModel(Product.name) private productModel: Model<ProductDocument>,
+    @InjectModel(Brand.name) private brandModel: Model<BrandDocument>,
     @InjectModel(User.name) private userModel: Model<UserDocument>,
     private notificationsService: NotificationsService,
   ) {}
@@ -118,9 +120,35 @@ export class BillsService {
       status,
     });
 
-    // decrement stock
+    // decrement stock and check for low stock
     await Promise.all(
-      items.map(i => this.productModel.updateOne({ _id: i.product }, { $inc: { stock: -i.quantity } }))
+      items.map(async (i) => {
+        await this.productModel.updateOne({ _id: i.product }, { $inc: { stock: -i.quantity } });
+        
+        // Check if stock is now low (<=5)
+        const updatedProduct = await this.productModel.findById(i.product).lean();
+        if (updatedProduct && updatedProduct.stock <= 5) {
+          try {
+            const brand = await this.brandModel.findById(updatedProduct.brand).lean();
+            await this.notificationsService.createNotification({
+              userId,
+              type: 'LOW_STOCK',
+              title: '⚠️ Low Stock Alert',
+              message: `Only ${updatedProduct.stock} units remaining for "${updatedProduct.name}"`,
+              data: {
+                productId: updatedProduct._id.toString(),
+                productName: updatedProduct.name,
+                stock: updatedProduct.stock,
+                brandId: updatedProduct.brand.toString(),
+                brandName: brand?.name || 'Unknown Brand',
+              },
+            });
+          } catch (err) {
+            // Log error but don't fail bill creation
+            console.error('Failed to create LOW_STOCK notification:', err);
+          }
+        }
+      })
     );
 
     // Create BILL_CREATED notification with complete bill data
