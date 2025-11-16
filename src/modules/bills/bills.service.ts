@@ -133,7 +133,7 @@ export class BillsService {
             await this.notificationsService.createNotification({
               userId,
               type: 'LOW_STOCK',
-              title: '⚠️ Low Stock Alert',
+              title: 'Low Stock Alert',
               message: `Only ${updatedProduct.stock} units remaining for "${updatedProduct.name}"`,
               data: {
                 productId: updatedProduct._id.toString(),
