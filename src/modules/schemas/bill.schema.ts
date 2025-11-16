@@ -1,9 +1,10 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document, Types } from 'mongoose';
+import { Customer } from './customer.schema';
 
 export type BillDocument = Document & {
   _id: Types.ObjectId;
-  customer: Types.ObjectId;
+  customer: Types.ObjectId | (Customer & { _id: Types.ObjectId });
   userId: Types.ObjectId;
   items: BillItem[];
   subtotal: number;

@@ -231,6 +231,12 @@ export class BillsService {
       this.billModel.countDocuments({ userId: new Types.ObjectId(userId) }),
     ]);
 
+    // Log first bill to verify customer data is populated
+    if (bills && bills.length > 0) {
+      console.log('✅ First bill structure:', JSON.stringify(bills[0], null, 2));
+      console.log('👥 Customer data:', bills[0]?.customer);
+    }
+
     const totalPages = Math.ceil(total / limit);
 
     return {
@@ -279,6 +285,47 @@ export class BillsService {
     );
 
     return this.billModel.findByIdAndDelete(id);
+  }
+
+  async debugPopulateCheck(userId: string) {
+    console.log('\n🔍 DEBUG: Checking populate functionality...\n');
+
+    // Get first bill without populate
+    const billWithoutPopulate = await this.billModel
+      .findOne({ userId: new Types.ObjectId(userId) })
+      .lean();
+    
+    console.log('❌ Without populate - customer field:', billWithoutPopulate?.customer);
+
+    // Get first bill WITH populate
+    const billWithPopulate = await this.billModel
+      .findOne({ userId: new Types.ObjectId(userId) })
+      .populate('customer')
+      .lean();
+
+    console.log('✅ With populate - customer field:', billWithPopulate?.customer);
+
+    // Check if customer is string or object
+    const customerType = typeof billWithPopulate?.customer;
+    console.log(`Customer type: ${customerType}`);
+
+    if (customerType === 'object') {
+      console.log('👥 Customer details:', {
+        name: billWithPopulate?.customer?.name,
+        phone: billWithPopulate?.customer?.phone,
+        address: billWithPopulate?.customer?.address,
+      });
+    } else {
+      console.log('⚠️ Customer is just an ID (string):', billWithPopulate?.customer);
+    }
+
+    return {
+      success: true,
+      message: 'Debug check complete. See server logs.',
+      billWithoutPopulate,
+      billWithPopulate,
+      customerIsObject: customerType === 'object',
+    };
   }
 }
 

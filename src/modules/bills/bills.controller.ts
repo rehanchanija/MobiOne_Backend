@@ -46,6 +46,11 @@ export class BillsController {
     return this.billsService.listBillsPaginated(pageNum, limitNum, user._id.toString());
   }
 
+  @Get('debug/populate-check')
+  async debugPopulateCheck(@GetUser() user: User) {
+    return this.billsService.debugPopulateCheck(user._id.toString());
+  }
+
   @Get(':id')
   getBill(@Param('id') id: string) {
     return this.billsService.getBill(id);
