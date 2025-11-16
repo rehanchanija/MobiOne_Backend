@@ -254,12 +254,28 @@ export class BillsService {
       throw new NotFoundException('Bill not found');
     }
 
+    // Process update data with proper typing
+    let processedData: any = { ...updateData };
+
+    // If marking as paid, ensure proper state update
+    if ((updateData as any)?.status === 'Paid' || (updateData as any)?.amountPaid !== undefined) {
+      const amountPaid = (updateData as any)?.amountPaid || bill.amountPaid;
+      const total = bill.total;
+
+      // Automatically set status based on amount paid
+      if (amountPaid >= total) {
+        processedData.status = 'Paid';
+      } else {
+        processedData.status = 'Pending';
+      }
+    }
+
     // Update bill logic here
     const updatedBill = await this.billModel.findByIdAndUpdate(
       id,
-      { $set: updateData },
+      { $set: processedData },
       { new: true }
-    ).exec() as BillDocument | null;
+    ).populate('customer').populate({ path: 'items', populate: { path: 'product' } }).exec() as BillDocument | null;
 
     if (!updatedBill) {
       throw new NotFoundException('Bill not found after update');
@@ -309,11 +325,11 @@ export class BillsService {
     const customerType = typeof billWithPopulate?.customer;
     console.log(`Customer type: ${customerType}`);
 
-    if (customerType === 'object') {
+    if (customerType === 'object' && billWithPopulate?.customer) {
       console.log('👥 Customer details:', {
-        name: billWithPopulate?.customer?.name,
-        phone: billWithPopulate?.customer?.phone,
-        address: billWithPopulate?.customer?.address,
+        name: (billWithPopulate.customer as any)?.name,
+        phone: (billWithPopulate.customer as any)?.phone,
+        address: (billWithPopulate.customer as any)?.address,
       });
     } else {
       console.log('⚠️ Customer is just an ID (string):', billWithPopulate?.customer);
