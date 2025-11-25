@@ -5,7 +5,6 @@ export type TransactionDocument = Document & {
   _id: Types.ObjectId;
   userId: Types.ObjectId;
   billId: Types.ObjectId;
-  transactionNumber: string;
   type: 'BILL_CREATED' | 'BILL_UPDATED';
   title: string;
   message: string;
@@ -22,9 +21,6 @@ export class Transaction {
 
   @Prop({ type: Types.ObjectId, ref: 'Bill', required: true, index: true })
   billId: Types.ObjectId;
-
-  @Prop({ required: true, unique: true, index: true })
-  transactionNumber: string;
 
   @Prop({ enum: ['BILL_CREATED', 'BILL_UPDATED'], required: true, index: true })
   type: 'BILL_CREATED' | 'BILL_UPDATED';

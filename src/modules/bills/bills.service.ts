@@ -178,6 +178,9 @@ export class BillsService {
     );
 
     try {
+      const customer = await this.customerModel.findById(customerId).lean();
+      const remainingAmount = Math.max(0, total - amountPaid);
+      
       await this.transactionsService.create({
         userId,
         billId: bill._id.toString(),
@@ -188,11 +191,14 @@ export class BillsService {
         data: {
           billId: bill._id.toString(),
           billNumber,
+          customerName: customer?.name || 'Unknown',
+          customerPhone: customer?.phone || '',
           subtotal,
           discount,
           total,
           amountPaid,
-          status,
+          remainingAmount,
+          paymentStatus: status,
           paymentMethod: dto.paymentMethod,
           itemCount: items.length,
           createdAt: new Date().toISOString(),
@@ -355,6 +361,9 @@ export class BillsService {
     }
 
     try {
+      const remainingAmount = Math.max(0, (updatedBill as any).total - (updatedBill as any).amountPaid);
+      const customerName = (updatedBill as any).customer?.name || 'Unknown';
+      const customerPhone = (updatedBill as any).customer?.phone || '';
       await this.transactionsService.create({
         userId,
         billId: updatedBill._id.toString(),
@@ -365,11 +374,14 @@ export class BillsService {
         data: {
           billId: updatedBill._id.toString(),
           billNumber: updatedBill.billNumber,
+          customerName,
+          customerPhone,
           subtotal: (updatedBill as any).subtotal,
           discount: (updatedBill as any).discount,
-          total: (updatedBill as any).total,
+          totalAmount: (updatedBill as any).total,
           amountPaid: (updatedBill as any).amountPaid,
-          status: (updatedBill as any).status,
+          remainingAmount,
+          paymentStatus: (updatedBill as any).status,
           paymentMethod: (updatedBill as any).paymentMethod,
           itemCount: (updatedBill as any).items?.length || 0,
           updatedAt: new Date().toISOString(),
