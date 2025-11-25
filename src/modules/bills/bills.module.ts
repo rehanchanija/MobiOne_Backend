@@ -9,11 +9,13 @@ import { Brand, BrandSchema } from '../schemas/brand.schema';
 import { User, UserSchema } from '../schemas/user.schema';
 import { AuthModule } from '../auth/auth.module';
 import { NotificationsModule } from '../notifications/notifications.module';
+import { TransactionsModule } from '../transactions/transactions.module';
 
 @Module({
   imports: [
     AuthModule,
     NotificationsModule,
+    TransactionsModule,
     MongooseModule.forFeature([
       { name: Bill.name, schema: BillSchema },
       { name: Customer.name, schema: CustomerSchema },
@@ -27,5 +29,3 @@ import { NotificationsModule } from '../notifications/notifications.module';
   exports: [],
 })
 export class BillsModule {}
-
-

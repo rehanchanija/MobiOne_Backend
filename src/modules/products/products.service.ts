@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { Product, ProductDocument } from '../schemas/product.schema';
@@ -11,9 +15,11 @@ import { NotificationsService } from '../notifications/notifications.service';
 @Injectable()
 export class ProductsService {
   constructor(
-    @InjectModel(Product.name) private readonly productModel: Model<ProductDocument>,
+    @InjectModel(Product.name)
+    private readonly productModel: Model<ProductDocument>,
     @InjectModel(Brand.name) private readonly brandModel: Model<BrandDocument>,
-    @InjectModel(Category.name) private readonly categoryModel: Model<CategoryDocument>,
+    @InjectModel(Category.name)
+    private readonly categoryModel: Model<CategoryDocument>,
     private notificationsService: NotificationsService,
   ) {}
 
@@ -61,11 +67,17 @@ export class ProductsService {
     const brandObjectId = this.ensureObjectId(brandId, 'brandId');
     const brand = await this.brandModel.findById(brandObjectId).lean();
     if (!brand) throw new NotFoundException('Brand not found');
-    const count = await this.productModel.countDocuments({ brand: brandObjectId });
+    const count = await this.productModel.countDocuments({
+      brand: brandObjectId,
+    });
     return { productCount: count };
   }
 
-  async createProductUnderBrand(brandId: string, dto: CreateProductDto, userId?: string) {
+  async createProductUnderBrand(
+    brandId: string,
+    dto: CreateProductDto,
+    userId?: string,
+  ) {
     const brandObjectId = this.ensureObjectId(brandId, 'brandId');
 
     const brand = await this.brandModel.findById(brandObjectId);
@@ -85,8 +97,14 @@ export class ProductsService {
       category: categoryObjectId,
     });
 
-    await this.brandModel.updateOne({ _id: brandObjectId }, { $addToSet: { products: created._id } });
-    await this.categoryModel.updateOne({ _id: categoryObjectId }, { $addToSet: { products: created._id } });
+    await this.brandModel.updateOne(
+      { _id: brandObjectId },
+      { $addToSet: { products: created._id } },
+    );
+    await this.categoryModel.updateOne(
+      { _id: categoryObjectId },
+      { $addToSet: { products: created._id } },
+    );
 
     // Create PRODUCT_CREATED notification
     if (userId) {
@@ -114,7 +132,11 @@ export class ProductsService {
 
   async getProductById(id: string) {
     const objectId = this.ensureObjectId(id, 'id');
-    const product = await this.productModel.findById(objectId).populate('brand').populate('category').lean();
+    const product = await this.productModel
+      .findById(objectId)
+      .populate('brand')
+      .populate('category')
+      .lean();
     if (!product) throw new NotFoundException('Product not found');
     return product;
   }
@@ -133,7 +155,10 @@ export class ProductsService {
     }
 
     if (dto.categoryId) {
-      const categoryObjectId = this.ensureObjectId(dto.categoryId, 'categoryId');
+      const categoryObjectId = this.ensureObjectId(
+        dto.categoryId,
+        'categoryId',
+      );
       const category = await this.categoryModel.findById(categoryObjectId);
       if (!category) throw new NotFoundException('Category not found');
       update.category = categoryObjectId;
@@ -144,7 +169,11 @@ export class ProductsService {
     const oldProduct = await this.productModel.findById(objectId).lean();
     if (!oldProduct) throw new NotFoundException('Product not found');
 
-    const product = await this.productModel.findByIdAndUpdate(objectId, update, { new: true });
+    const product = await this.productModel.findByIdAndUpdate(
+      objectId,
+      update,
+      { new: true },
+    );
     if (!product) throw new NotFoundException('Product not found');
 
     // Create PRODUCT_UPDATED notification
@@ -159,7 +188,9 @@ export class ProductsService {
           data: {
             productId: (product._id as Types.ObjectId).toString(),
             productName: product.name,
-            brandId: brand ? (brand._id as Types.ObjectId).toString() : undefined,
+            brandId: brand
+              ? (brand._id as Types.ObjectId).toString()
+              : undefined,
             brandName: brand?.name,
           },
         });
@@ -183,7 +214,9 @@ export class ProductsService {
               productId: (product._id as Types.ObjectId).toString(),
               productName: product.name,
               stock: product.stock,
-              brandId: brand ? (brand._id as Types.ObjectId).toString() : undefined,
+              brandId: brand
+                ? (brand._id as Types.ObjectId).toString()
+                : undefined,
               brandName: brand?.name,
             },
           });
@@ -200,10 +233,16 @@ export class ProductsService {
     const objectId = this.ensureObjectId(id, 'id');
     const deleted = await this.productModel.findByIdAndDelete(objectId);
     if (!deleted) throw new NotFoundException('Product not found');
-    
+
     // cleanup references
-    await this.brandModel.updateOne({ _id: deleted.brand }, { $pull: { products: deleted._id } });
-    await this.categoryModel.updateOne({ _id: deleted.category }, { $pull: { products: deleted._id } });
+    await this.brandModel.updateOne(
+      { _id: deleted.brand },
+      { $pull: { products: deleted._id } },
+    );
+    await this.categoryModel.updateOne(
+      { _id: deleted.category },
+      { $pull: { products: deleted._id } },
+    );
 
     // Create PRODUCT_DELETED notification
     if (userId) {
@@ -217,7 +256,9 @@ export class ProductsService {
           data: {
             productId: (deleted._id as Types.ObjectId).toString(),
             productName: deleted.name,
-            brandId: brand ? (brand._id as Types.ObjectId).toString() : undefined,
+            brandId: brand
+              ? (brand._id as Types.ObjectId).toString()
+              : undefined,
             brandName: brand?.name,
           },
         });
@@ -230,5 +271,3 @@ export class ProductsService {
     return { success: true };
   }
 }
-
-

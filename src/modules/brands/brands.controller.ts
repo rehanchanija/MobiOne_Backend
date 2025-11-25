@@ -1,4 +1,13 @@
-import { Body, Controller, Delete, Get, Param, Post, Put, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  Post,
+  Put,
+  UseGuards,
+} from '@nestjs/common';
 import { ProductsService } from '../products/products.service';
 import { CreateProductDto } from '../products/dto/create-product.dto';
 import { BrandsService } from './brands.service';
@@ -55,7 +64,11 @@ export class BrandsController {
     @Body() dto: CreateProductDto,
     @GetUser() user: any,
   ) {
-    return this.productsService.createProductUnderBrand(id, dto, user._id?.toString());
+    return this.productsService.createProductUnderBrand(
+      id,
+      dto,
+      user._id?.toString(),
+    );
   }
 
   @Get(':id/stock')
@@ -68,5 +81,3 @@ export class BrandsController {
     return this.productsService.getProductCountByBrand(id);
   }
 }
-
-

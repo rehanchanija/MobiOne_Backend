@@ -7,5 +7,3 @@ export class UpdateBrandDto extends PartialType(CreateBrandDto) {
   @MinLength(2)
   name?: string;
 }
-
-

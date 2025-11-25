@@ -1,4 +1,13 @@
-import { Body, Controller, Delete, Get, Param, Put, Query, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  Put,
+  Query,
+  UseGuards,
+} from '@nestjs/common';
 import { ProductsService } from './products.service';
 import { UpdateProductDto } from './dto/update-product.dto';
 import { AuthGuard } from '../auth/auth.guard';
@@ -21,7 +30,11 @@ export class ProductsController {
   }
 
   @Put(':id')
-  async update(@Param('id') id: string, @Body() dto: UpdateProductDto, @GetUser() user: any) {
+  async update(
+    @Param('id') id: string,
+    @Body() dto: UpdateProductDto,
+    @GetUser() user: any,
+  ) {
     return this.productsService.updateProduct(id, dto, user._id?.toString());
   }
 
@@ -30,5 +43,3 @@ export class ProductsController {
     return this.productsService.deleteProduct(id, user._id?.toString());
   }
 }
-
-

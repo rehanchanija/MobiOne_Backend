@@ -1,4 +1,14 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  Patch,
+  Post,
+  Query,
+  UseGuards,
+} from '@nestjs/common';
 import { BillsService } from './bills.service';
 import { AuthGuard } from '../auth/auth.guard';
 import { User } from '../schemas/user.schema';
@@ -10,7 +20,9 @@ export class BillsController {
   constructor(private readonly billsService: BillsService) {}
 
   @Post('customers')
-  createCustomer(@Body() body: { name: string; phone?: string; address?: string }) {
+  createCustomer(
+    @Body() body: { name: string; phone?: string; address?: string },
+  ) {
     return this.billsService.createCustomer(body);
   }
 
@@ -30,7 +42,7 @@ export class BillsController {
       paymentMethod: 'Cash' | 'Online';
       amountPaid: number;
     },
-    @GetUser() user: User
+    @GetUser() user: User,
   ) {
     return this.billsService.createBill(body, user._id.toString());
   }
@@ -39,11 +51,15 @@ export class BillsController {
   listBills(
     @GetUser() user: User,
     @Query('page') page?: string,
-    @Query('limit') limit?: string
+    @Query('limit') limit?: string,
   ) {
     const pageNum = Math.max(1, parseInt(page || '1') || 1);
     const limitNum = Math.max(1, Math.min(100, parseInt(limit || '10') || 10));
-    return this.billsService.listBillsPaginated(pageNum, limitNum, user._id.toString());
+    return this.billsService.listBillsPaginated(
+      pageNum,
+      limitNum,
+      user._id.toString(),
+    );
   }
 
   @Get('debug/populate-check')
@@ -60,7 +76,7 @@ export class BillsController {
   updateBill(
     @Param('id') id: string,
     @Body() updateData: any,
-    @GetUser() user: User
+    @GetUser() user: User,
   ) {
     return this.billsService.updateBill(id, updateData, user._id.toString());
   }
@@ -70,5 +86,3 @@ export class BillsController {
     return this.billsService.deleteBill(id, user._id.toString());
   }
 }
-
-

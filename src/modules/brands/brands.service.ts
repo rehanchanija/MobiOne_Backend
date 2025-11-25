@@ -1,4 +1,8 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { Brand, BrandDocument } from '../schemas/brand.schema';
@@ -14,7 +18,8 @@ export class BrandsService {
   ) {}
 
   private ensureObjectId(id: string): Types.ObjectId {
-    if (!Types.ObjectId.isValid(id)) throw new BadRequestException('Invalid id');
+    if (!Types.ObjectId.isValid(id))
+      throw new BadRequestException('Invalid id');
     return new Types.ObjectId(id);
   }
 
@@ -110,5 +115,3 @@ export class BrandsService {
     return { success: true };
   }
 }
-
-

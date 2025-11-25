@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { Bill, BillDocument } from '../schemas/bill.schema';
@@ -7,9 +11,17 @@ import { Product, ProductDocument } from '../schemas/product.schema';
 import { Brand, BrandDocument } from '../schemas/brand.schema';
 import { User, UserDocument } from '../schemas/user.schema';
 import { NotificationsService } from '../notifications/notifications.service';
+import { TransactionsService } from '../transactions/transactions.service';
 
-interface CreateCustomerDto { name: string; phone?: string; address?: string }
-interface BillItemInput { productId: string; quantity: number; }
+interface CreateCustomerDto {
+  name: string;
+  phone?: string;
+  address?: string;
+}
+interface BillItemInput {
+  productId: string;
+  quantity: number;
+}
 interface CreateBillDto {
   customerId?: string;
   customer?: CreateCustomerDto;
@@ -28,6 +40,7 @@ export class BillsService {
     @InjectModel(Brand.name) private brandModel: Model<BrandDocument>,
     @InjectModel(User.name) private userModel: Model<UserDocument>,
     private notificationsService: NotificationsService,
+    private transactionsService: TransactionsService,
   ) {}
 
   async createCustomer(dto: CreateCustomerDto) {
@@ -53,7 +66,7 @@ export class BillsService {
     // Find the count of bills created today for this user
     const startOfDay = new Date(today);
     startOfDay.setHours(0, 0, 0, 0);
-    
+
     const endOfDay = new Date(today);
     endOfDay.setHours(23, 59, 59, 999);
 
@@ -86,17 +99,23 @@ export class BillsService {
     }
 
     // fetch products and compute totals
-    const productIds = dto.items.map(i => new Types.ObjectId(i.productId));
-    const products = await this.productModel.find({ _id: { $in: productIds } }).lean();
-    const productMap = new Map(products.map(p => [p._id.toString(), p]));
+    const productIds = dto.items.map((i) => new Types.ObjectId(i.productId));
+    const products = await this.productModel
+      .find({ _id: { $in: productIds } })
+      .lean();
+    const productMap = new Map(products.map((p) => [p._id.toString(), p]));
 
     let subtotal = 0;
-    const items = dto.items.map(i => {
+    const items = dto.items.map((i) => {
       const p = productMap.get(i.productId);
       if (!p) throw new NotFoundException(`Product not found: ${i.productId}`);
       const price = p.price;
       subtotal += price * i.quantity;
-            return { product: new Types.ObjectId(i.productId), quantity: i.quantity, price };
+      return {
+        product: new Types.ObjectId(i.productId),
+        quantity: i.quantity,
+        price,
+      };
     });
 
     const discount = Math.max(0, dto.discount || 0);
@@ -123,13 +142,20 @@ export class BillsService {
     // decrement stock and check for low stock
     await Promise.all(
       items.map(async (i) => {
-        await this.productModel.updateOne({ _id: i.product }, { $inc: { stock: -i.quantity } });
-        
+        await this.productModel.updateOne(
+          { _id: i.product },
+          { $inc: { stock: -i.quantity } },
+        );
+
         // Check if stock is now low (<=5)
-        const updatedProduct = await this.productModel.findById(i.product).lean();
+        const updatedProduct = await this.productModel
+          .findById(i.product)
+          .lean();
         if (updatedProduct && updatedProduct.stock <= 5) {
           try {
-            const brand = await this.brandModel.findById(updatedProduct.brand).lean();
+            const brand = await this.brandModel
+              .findById(updatedProduct.brand)
+              .lean();
             await this.notificationsService.createNotification({
               userId,
               type: 'LOW_STOCK',
@@ -148,13 +174,36 @@ export class BillsService {
             console.error('Failed to create LOW_STOCK notification:', err);
           }
         }
-      })
+      }),
     );
+
+    try {
+      await this.transactionsService.create({
+        userId,
+        billId: bill._id.toString(),
+        type: 'BILL_CREATED',
+        title: 'Bill Created',
+        message: `Bill ${billNumber} created`,
+        action: 'BILL_CREATED',
+        data: {
+          billId: bill._id.toString(),
+          billNumber,
+          subtotal,
+          discount,
+          total,
+          amountPaid,
+          status,
+          paymentMethod: dto.paymentMethod,
+          itemCount: items.length,
+          createdAt: new Date().toISOString(),
+        },
+      });
+    } catch (e) {}
 
     // Create BILL_CREATED notification with complete bill data
     try {
       const customer = await this.customerModel.findById(customerId).lean();
-      
+
       // Get product details for items
       const itemsWithDetails = await Promise.all(
         items.map(async (item) => {
@@ -166,7 +215,7 @@ export class BillsService {
             price: item.price,
             description: product?.description || '',
           };
-        })
+        }),
       );
 
       // Calculate remaining amount
@@ -203,7 +252,11 @@ export class BillsService {
   }
 
   async getBill(id: string): Promise<BillDocument | null> {
-    return this.billModel.findById(id).populate('customer').populate({ path: 'items', populate: { path: 'product' } }).lean() as Promise<BillDocument | null>;
+    return this.billModel
+      .findById(id)
+      .populate('customer')
+      .populate({ path: 'items', populate: { path: 'product' } })
+      .lean() as Promise<BillDocument | null>;
   }
 
   async listBills(userId?: string): Promise<BillDocument[]> {
@@ -216,7 +269,17 @@ export class BillsService {
       .lean() as Promise<BillDocument[]>;
   }
 
-  async listBillsPaginated(page: number, limit: number, userId: string): Promise<{ bills: BillDocument[]; total: number; page: number; limit: number; totalPages: number }> {
+  async listBillsPaginated(
+    page: number,
+    limit: number,
+    userId: string,
+  ): Promise<{
+    bills: BillDocument[];
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+  }> {
     const skip = (page - 1) * limit;
 
     const [bills, total] = await Promise.all([
@@ -233,7 +296,10 @@ export class BillsService {
 
     // Log first bill to verify customer data is populated
     if (bills && bills.length > 0) {
-      console.log('✅ First bill structure:', JSON.stringify(bills[0], null, 2));
+      console.log(
+        '✅ First bill structure:',
+        JSON.stringify(bills[0], null, 2),
+      );
       console.log('👥 Customer data:', bills[0]?.customer);
     }
 
@@ -248,17 +314,24 @@ export class BillsService {
     };
   }
 
-  async updateBill(id: string, updateData: Partial<CreateBillDto>, userId: string) {
+  async updateBill(
+    id: string,
+    updateData: Partial<CreateBillDto>,
+    userId: string,
+  ) {
     const bill = await this.billModel.findById(id);
     if (!bill) {
       throw new NotFoundException('Bill not found');
     }
 
     // Process update data with proper typing
-    let processedData: any = { ...updateData };
+    const processedData: any = { ...updateData };
 
     // If marking as paid, ensure proper state update
-    if ((updateData as any)?.status === 'Paid' || (updateData as any)?.amountPaid !== undefined) {
+    if (
+      (updateData as any)?.status === 'Paid' ||
+      (updateData as any)?.amountPaid !== undefined
+    ) {
       const amountPaid = (updateData as any)?.amountPaid || bill.amountPaid;
       const total = bill.total;
 
@@ -271,15 +344,38 @@ export class BillsService {
     }
 
     // Update bill logic here
-    const updatedBill = await this.billModel.findByIdAndUpdate(
-      id,
-      { $set: processedData },
-      { new: true }
-    ).populate('customer').populate({ path: 'items', populate: { path: 'product' } }).exec() as BillDocument | null;
+    const updatedBill = (await this.billModel
+      .findByIdAndUpdate(id, { $set: processedData }, { new: true })
+      .populate('customer')
+      .populate({ path: 'items', populate: { path: 'product' } })
+      .exec()) as BillDocument | null;
 
     if (!updatedBill) {
       throw new NotFoundException('Bill not found after update');
     }
+
+    try {
+      await this.transactionsService.create({
+        userId,
+        billId: updatedBill._id.toString(),
+        type: 'BILL_UPDATED',
+        title: 'Bill Updated',
+        message: `Bill ${updatedBill.billNumber} updated`,
+        action: 'BILL_UPDATED',
+        data: {
+          billId: updatedBill._id.toString(),
+          billNumber: updatedBill.billNumber,
+          subtotal: (updatedBill as any).subtotal,
+          discount: (updatedBill as any).discount,
+          total: (updatedBill as any).total,
+          amountPaid: (updatedBill as any).amountPaid,
+          status: (updatedBill as any).status,
+          paymentMethod: (updatedBill as any).paymentMethod,
+          itemCount: (updatedBill as any).items?.length || 0,
+          updatedAt: new Date().toISOString(),
+        },
+      });
+    } catch (e) {}
 
     return updatedBill;
   }
@@ -292,12 +388,12 @@ export class BillsService {
 
     // Increment product stock back
     await Promise.all(
-      bill.items.map(item => 
+      bill.items.map((item) =>
         this.productModel.updateOne(
           { _id: item.product },
-          { $inc: { stock: item.quantity } }
-        )
-      )
+          { $inc: { stock: item.quantity } },
+        ),
+      ),
     );
 
     return this.billModel.findByIdAndDelete(id);
@@ -310,8 +406,11 @@ export class BillsService {
     const billWithoutPopulate = await this.billModel
       .findOne({ userId: new Types.ObjectId(userId) })
       .lean();
-    
-    console.log('❌ Without populate - customer field:', billWithoutPopulate?.customer);
+
+    console.log(
+      '❌ Without populate - customer field:',
+      billWithoutPopulate?.customer,
+    );
 
     // Get first bill WITH populate
     const billWithPopulate = await this.billModel
@@ -319,7 +418,10 @@ export class BillsService {
       .populate('customer')
       .lean();
 
-    console.log('✅ With populate - customer field:', billWithPopulate?.customer);
+    console.log(
+      '✅ With populate - customer field:',
+      billWithPopulate?.customer,
+    );
 
     // Check if customer is string or object
     const customerType = typeof billWithPopulate?.customer;
@@ -332,7 +434,10 @@ export class BillsService {
         address: (billWithPopulate.customer as any)?.address,
       });
     } else {
-      console.log('⚠️ Customer is just an ID (string):', billWithPopulate?.customer);
+      console.log(
+        '⚠️ Customer is just an ID (string):',
+        billWithPopulate?.customer,
+      );
     }
 
     return {
@@ -344,5 +449,3 @@ export class BillsService {
     };
   }
 }
-
-

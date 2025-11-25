@@ -1,4 +1,8 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { Category, CategoryDocument } from '../schemas/category.schema';
@@ -7,10 +11,14 @@ import { UpdateCategoryDto } from './dto/update-category.dto';
 
 @Injectable()
 export class CategoriesService {
-  constructor(@InjectModel(Category.name) private readonly categoryModel: Model<CategoryDocument>) {}
+  constructor(
+    @InjectModel(Category.name)
+    private readonly categoryModel: Model<CategoryDocument>,
+  ) {}
 
   private ensureObjectId(id: string): Types.ObjectId {
-    if (!Types.ObjectId.isValid(id)) throw new BadRequestException('Invalid id');
+    if (!Types.ObjectId.isValid(id))
+      throw new BadRequestException('Invalid id');
     return new Types.ObjectId(id);
   }
 
@@ -19,7 +27,9 @@ export class CategoriesService {
   }
 
   async create(dto: CreateCategoryDto) {
-    return (await this.categoryModel.create({ name: dto.name.trim() })).toObject();
+    return (
+      await this.categoryModel.create({ name: dto.name.trim() })
+    ).toObject();
   }
 
   async update(id: string, dto: UpdateCategoryDto) {
@@ -40,5 +50,3 @@ export class CategoriesService {
     return { success: true };
   }
 }
-
-

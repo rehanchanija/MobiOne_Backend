@@ -32,7 +32,7 @@ export class User {
   @Prop({ default: Date.now })
   updatedAt: Date;
 
-  _id:string
+  _id: string;
 }
 
 export const UserSchema = SchemaFactory.createForClass(User);

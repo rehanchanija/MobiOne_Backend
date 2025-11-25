@@ -4,7 +4,16 @@ import { Document, Types } from 'mongoose';
 export type NotificationDocument = Document & {
   _id: Types.ObjectId;
   userId: Types.ObjectId;
-  type: 'PRODUCT_CREATED' | 'PRODUCT_UPDATED' | 'PRODUCT_DELETED' | 'LOW_STOCK' | 'PAYMENT_PENDING' | 'BILL_CREATED' | 'BRAND_CREATED' | 'BRAND_UPDATED' | 'BRAND_DELETED';
+  type:
+    | 'PRODUCT_CREATED'
+    | 'PRODUCT_UPDATED'
+    | 'PRODUCT_DELETED'
+    | 'LOW_STOCK'
+    | 'PAYMENT_PENDING'
+    | 'BILL_CREATED'
+    | 'BRAND_CREATED'
+    | 'BRAND_UPDATED'
+    | 'BRAND_DELETED';
   title: string;
   message: string;
   data: {

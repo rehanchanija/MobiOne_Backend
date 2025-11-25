@@ -1,6 +1,13 @@
 import { PartialType } from '@nestjs/mapped-types';
 import { CreateProductDto } from './create-product.dto';
-import { IsMongoId, IsNumber, IsOptional, IsPositive, Min, MinLength } from 'class-validator';
+import {
+  IsMongoId,
+  IsNumber,
+  IsOptional,
+  IsPositive,
+  Min,
+  MinLength,
+} from 'class-validator';
 
 export class UpdateProductDto extends PartialType(CreateProductDto) {
   @IsOptional()
@@ -32,5 +39,3 @@ export class UpdateProductDto extends PartialType(CreateProductDto) {
   @IsMongoId()
   categoryId?: string;
 }
-
-

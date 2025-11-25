@@ -1,4 +1,12 @@
-import { Controller, Get, Patch, Delete, Param, Query, UseGuards } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Patch,
+  Delete,
+  Param,
+  Query,
+  UseGuards,
+} from '@nestjs/common';
 import { NotificationsService } from './notifications.service';
 import { AuthGuard } from '../auth/auth.guard';
 import { GetUser } from '../auth/get-user.decorator';
@@ -18,20 +26,38 @@ export class NotificationsController {
   ) {
     const pageNum = Math.max(1, parseInt(page || '1') || 1);
     const limitNum = Math.max(1, Math.min(100, parseInt(limit || '10') || 10));
-    
-    console.log('📌 GET /notifications called for user:', user._id, 'page:', pageNum, 'limit:', limitNum);
-    
-    const result = await this.notificationsService.getUserNotifications(user._id.toString(), pageNum, limitNum);
-    
-    console.log('✅ Returning notifications:', result.notifications.length, 'unreadCount:', result.unreadCount);
-    
+
+    console.log(
+      '📌 GET /notifications called for user:',
+      user._id,
+      'page:',
+      pageNum,
+      'limit:',
+      limitNum,
+    );
+
+    const result = await this.notificationsService.getUserNotifications(
+      user._id.toString(),
+      pageNum,
+      limitNum,
+    );
+
+    console.log(
+      '✅ Returning notifications:',
+      result.notifications.length,
+      'unreadCount:',
+      result.unreadCount,
+    );
+
     return result;
   }
 
   // Get unread count
   @Get('unread/count')
   async getUnreadCount(@GetUser() user: User) {
-    const count = await this.notificationsService.getUnreadCount(user._id.toString());
+    const count = await this.notificationsService.getUnreadCount(
+      user._id.toString(),
+    );
     return { unreadCount: count };
   }
 
@@ -45,13 +71,21 @@ export class NotificationsController {
   ) {
     const pageNum = Math.max(1, parseInt(page || '1') || 1);
     const limitNum = Math.max(1, Math.min(100, parseInt(limit || '10') || 10));
-    return this.notificationsService.getNotificationsByType(user._id.toString(), type, pageNum, limitNum);
+    return this.notificationsService.getNotificationsByType(
+      user._id.toString(),
+      type,
+      pageNum,
+      limitNum,
+    );
   }
 
   // Mark notification as read
   @Patch(':id/read')
   async markAsRead(@GetUser() user: User, @Param('id') notificationId: string) {
-    return this.notificationsService.markAsRead(notificationId, user._id.toString());
+    return this.notificationsService.markAsRead(
+      notificationId,
+      user._id.toString(),
+    );
   }
 
   // Mark all as read
@@ -63,8 +97,14 @@ export class NotificationsController {
 
   // Delete notification
   @Delete(':id')
-  async deleteNotification(@GetUser() user: User, @Param('id') notificationId: string) {
-    await this.notificationsService.deleteNotification(notificationId, user._id.toString());
+  async deleteNotification(
+    @GetUser() user: User,
+    @Param('id') notificationId: string,
+  ) {
+    await this.notificationsService.deleteNotification(
+      notificationId,
+      user._id.toString(),
+    );
     return { success: true };
   }
 

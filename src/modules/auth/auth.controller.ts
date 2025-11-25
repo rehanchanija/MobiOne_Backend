@@ -18,15 +18,16 @@ export class AuthController {
 
   // REGISTER
   @Post('register')
-  async register(
-    @Body() registerDto: RegisterDto,
-  ) {
+  async register(@Body() registerDto: RegisterDto) {
     return this.authService.register(registerDto);
   }
 
   // LOGIN
   @Post('login')
-  async login(@Body('email') email: string, @Body('password') password: string) {
+  async login(
+    @Body('email') email: string,
+    @Body('password') password: string,
+  ) {
     console.log('login', email, password);
     return this.authService.login(email, password);
   }
@@ -38,11 +39,10 @@ export class AuthController {
   }
 
   @UseGuards(AuthGuard)
- @Get('profile')
-getProfile(@Request() req) {
-  return this.authService.getProfile(req.user); // align with JwtStrategy.validate
-}
-
+  @Get('profile')
+  getProfile(@Request() req) {
+    return this.authService.getProfile(req.user); // align with JwtStrategy.validate
+  }
 
   @UseGuards(AuthGuard)
   @Put('profile')

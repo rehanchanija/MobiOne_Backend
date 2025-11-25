@@ -5,5 +5,3 @@ export class CreateBrandDto {
   @MinLength(2)
   name: string;
 }
-
-

@@ -11,22 +11,19 @@ import { Request } from 'express';
 export class AuthGuard implements CanActivate {
   constructor(private jwtService: JwtService) {}
   async canActivate(context: ExecutionContext): Promise<boolean> {
-      const request = context.switchToHttp().getRequest();
-      const token = this.extractTokenFromHeader(request);
+    const request = context.switchToHttp().getRequest();
+    const token = this.extractTokenFromHeader(request);
     if (!token) {
       throw new UnauthorizedException();
     }
-        console.log("rehan",process.env.JWT_SECRET )
+    console.log('rehan', process.env.JWT_SECRET);
 
     try {
-        const payload = await this.jwtService.verifyAsync(
-            token,
-            {
-                secret: process.env.JWT_SECRET || 'mySecretKey',
-            }
-        );
-request.user = { _id: payload.sub, email: payload.email };
-    } catch(e) {
+      const payload = await this.jwtService.verifyAsync(token, {
+        secret: process.env.JWT_SECRET || 'mySecretKey',
+      });
+      request.user = { _id: payload.sub, email: payload.email };
+    } catch (e) {
       throw new UnauthorizedException();
     }
     return true;

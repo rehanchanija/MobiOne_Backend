@@ -18,14 +18,13 @@ export class AuthService {
   ) {}
 
   // REGISTER
-  async register(
-    registerDto: RegisterDto,
-  ) {
-    const existingUser = await this.userModel.findOne({ email: registerDto.email }).exec();
+  async register(registerDto: RegisterDto) {
+    const existingUser = await this.userModel
+      .findOne({ email: registerDto.email })
+      .exec();
     if (existingUser) {
       throw new UnauthorizedException('User already exists');
     }
-    
 
     const hashedPassword = await bcrypt.hash(registerDto.password, 10);
 
@@ -40,16 +39,14 @@ export class AuthService {
 
     await newUser.save();
     const payload = { sub: newUser._id, email: newUser.email };
-    const token = await this.jwtService.signAsync(payload,{
+    const token = await this.jwtService.signAsync(payload, {
       secret: process.env.JWT_SECRET || 'mySecretKey',
       expiresIn: '1h',
-
     });
     return {
       message: 'User registered successfully',
       userId: newUser._id,
-      token
-      
+      token,
     };
   }
 
@@ -103,12 +100,15 @@ export class AuthService {
 
       const newAccessToken = await this.jwtService.signAsync(
         { sub: user._id, email: user.email },
-        { secret: process.env.JWT_SECRET || 'mySecretKey', expiresIn: '15m' }
+        { secret: process.env.JWT_SECRET || 'mySecretKey', expiresIn: '15m' },
       );
 
       const newRefreshToken = await this.jwtService.signAsync(
         { sub: user._id, email: user.email },
-        { secret: process.env.JWT_REFRESH_SECRET || 'myRefreshSecret', expiresIn: '90d' }
+        {
+          secret: process.env.JWT_REFRESH_SECRET || 'myRefreshSecret',
+          expiresIn: '90d',
+        },
       );
 
       // rotate refresh token
@@ -124,20 +124,23 @@ export class AuthService {
   // GET PROFILE
   async getProfile(userId: string) {
     console.log('Getting profile for userId:', userId);
-    
+
     if (!userId) {
       console.error('No userId provided to getProfile');
       throw new UnauthorizedException('No user ID provided');
     }
 
     try {
-      const user = await this.userModel.findById(userId).select('-password').exec();
-      
+      const user = await this.userModel
+        .findById(userId)
+        .select('-password')
+        .exec();
+
       if (!user) {
         console.error('User not found for ID:', userId);
         throw new NotFoundException('User not found');
       }
-      
+
       console.log('Found user:', { id: user._id, email: user.email });
       return user;
     } catch (error) {
@@ -150,10 +153,7 @@ export class AuthService {
   }
 
   // UPDATE PROFILE
-  async updateProfile(
-    userId: string,
-    data: Partial<User>,
-  ) {
+  async updateProfile(userId: string, data: Partial<User>) {
     const updatedUser = await this.userModel
       .findByIdAndUpdate(
         userId,

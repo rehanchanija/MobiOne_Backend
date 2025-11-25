@@ -2,7 +2,8 @@ import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document, Types } from 'mongoose';
 
 // Ensure _id has a concrete type instead of unknown (Mongoose v7)
-export type CustomerDocument = Document<unknown, {}, Customer> & Customer & { _id: Types.ObjectId };
+export type CustomerDocument = Document<unknown, {}, Customer> &
+  Customer & { _id: Types.ObjectId };
 
 @Schema({ timestamps: true })
 export class Customer {
@@ -17,5 +18,3 @@ export class Customer {
 }
 
 export const CustomerSchema = SchemaFactory.createForClass(Customer);
-
-
