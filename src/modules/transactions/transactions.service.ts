@@ -23,10 +23,28 @@ export class TransactionsService {
     private transactionModel: Model<TransactionDocument>,
   ) {}
 
+  private async generateTransactionNumber(userId: string): Promise<string> {
+    const today = new Date();
+    const dateStr = today.toISOString().slice(0, 10).replace(/-/g, '');
+    const startOfDay = new Date(today);
+    startOfDay.setHours(0, 0, 0, 0);
+    const endOfDay = new Date(today);
+    endOfDay.setHours(23, 59, 59, 999);
+
+    const countToday = await this.transactionModel.countDocuments({
+      userId: new Types.ObjectId(userId),
+      createdAt: { $gte: startOfDay, $lte: endOfDay },
+    });
+    const serial = String(countToday + 1).padStart(3, '0');
+    return `TX-${dateStr}-${serial}`;
+  }
+
   async create(dto: CreateTransactionDto): Promise<TransactionDocument> {
+    const transactionNumber = await this.generateTransactionNumber(dto.userId);
     const t = await this.transactionModel.create({
       userId: new Types.ObjectId(dto.userId),
       billId: new Types.ObjectId(dto.billId),
+      transactionNumber,
       type: dto.type,
       title: dto.title,
       message: dto.message,
