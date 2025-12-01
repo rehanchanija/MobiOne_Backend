@@ -18,6 +18,16 @@ import { GetUser } from '../auth/get-user.decorator';
 export class ProductsController {
   constructor(private readonly productsService: ProductsService) {}
 
+  @Get('dashboard/count')
+  async getTotalProductsCount() {
+    return this.productsService.getTotalProductsCount();
+  }
+
+  @Get('dashboard/stock')
+  async getTotalStock() {
+    return this.productsService.getTotalStock();
+  }
+
   @Get()
   async listAll(@Query('q') q?: string) {
     // simple search to support filtering if needed later

@@ -73,6 +73,20 @@ export class ProductsService {
     return { productCount: count };
   }
 
+  async getTotalProductsCount() {
+    const totalProducts = await this.productModel.countDocuments();
+    return { totalProducts };
+  }
+
+  async getTotalStock() {
+    const result = await this.productModel.aggregate([
+      { $group: { _id: null, totalStock: { $sum: '$stock' } } },
+    ]);
+
+    const totalStock = result[0]?.totalStock ?? 0;
+    return { totalStock };
+  }
+
   async createProductUnderBrand(
     brandId: string,
     dto: CreateProductDto,

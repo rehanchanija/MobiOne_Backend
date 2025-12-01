@@ -47,6 +47,11 @@ export class BillsController {
     return this.billsService.createBill(body, user._id.toString());
   }
 
+  @Get('dashboard/totals')
+  getDashboardTotals(@GetUser() user: User) {
+    return this.billsService.getDashboardTotals(user._id.toString());
+  }
+
   @Get()
   listBills(
     @GetUser() user: User,

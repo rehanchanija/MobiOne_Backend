@@ -52,37 +52,43 @@ export class BillsService {
   }
 
   // Generate bill number: shopname-YYYYMMDD-serialnumber (e.g., raza-20251111-01)
-  private async generateBillNumber(userId: string): Promise<string> {
-    // Get user to retrieve shop name
-    const user = await this.userModel.findById(userId).lean();
-    if (!user || !user.shopName) {
-      throw new BadRequestException('User shop name not found');
-    }
-
-    // Get today's date in YYYYMMDD format
-    const today = new Date();
-    const dateStr = today.toISOString().slice(0, 10).replace(/-/g, '');
-
-    // Find the count of bills created today for this user
-    const startOfDay = new Date(today);
-    startOfDay.setHours(0, 0, 0, 0);
-
-    const endOfDay = new Date(today);
-    endOfDay.setHours(23, 59, 59, 999);
-
-    const billCountToday = await this.billModel.countDocuments({
-      userId: new Types.ObjectId(userId),
-      createdAt: { $gte: startOfDay, $lte: endOfDay },
-    });
-
-    // Serial number starts from 01
-    const serialNumber = String(billCountToday + 1).padStart(2, '0');
-
-    // Format: shopname-YYYYMMDD-serialnumber
-    const billNumber = `${user.shopName.toLowerCase()}-${dateStr}-${serialNumber}`;
-
-    return billNumber;
+  // Replace the old generateBillNumber with this version
+private async generateBillNumber(userId: string): Promise<string> {
+  // Get user to retrieve shop name
+  const user = await this.userModel.findById(userId).lean();
+  if (!user || !user.shopName) {
+    throw new BadRequestException('User shop name not found');
   }
+
+  // Year string e.g., 2025
+  const today = new Date();
+  const yearStr = String(today.getFullYear());
+
+  // Determine start and end of the current year
+  const startOfYear = new Date(today.getFullYear(), 0, 1, 0, 0, 0, 0);
+  const endOfYear = new Date(today.getFullYear(), 11, 31, 23, 59, 59, 999);
+
+  // Count bills for this user created within this year
+  const billCountThisYear = await this.billModel.countDocuments({
+    userId: new Types.ObjectId(userId),
+    createdAt: { $gte: startOfYear, $lte: endOfYear },
+  });
+
+  // Serial number starts from 0001 for the year
+  const serialNumber = String(billCountThisYear + 1).padStart(4, '0');
+
+  // Sanitize shop name: lowercase, replace spaces with hyphens, remove non-alphanum/hyphen
+  const shopSlug = String(user.shopName)
+    .toLowerCase()
+    .trim()
+    .replace(/\s+/g, '-')
+    .replace(/[^a-z0-9\-]/g, '');
+
+  // Format: shopname-YYYY-serialnumber (e.g., raza-2025-0001)
+  const billNumber = `${shopSlug}-${yearStr}-${serialNumber}`;
+
+  return billNumber;
+}
 
   async createBill(dto: CreateBillDto, userId: string) {
     if (!dto.items?.length) throw new BadRequestException('Items are required');
@@ -458,6 +464,38 @@ export class BillsService {
       billWithoutPopulate,
       billWithPopulate,
       customerIsObject: customerType === 'object',
+    };
+  }
+
+  async getDashboardTotals(userId: string): Promise<{
+    totalSalesAllTime: number;
+    totalPendingAmountAllTime: number;
+  }> {
+    const userObjectId = new Types.ObjectId(userId);
+
+    // Get all bills for this user
+    const bills = await this.billModel
+      .find({ userId: userObjectId })
+      .lean();
+
+    // Calculate totals
+    let totalSalesAllTime = 0;
+    let totalPendingAmountAllTime = 0;
+
+    bills.forEach((bill: any) => {
+      // Total sales (sum of all bills' total amounts)
+      totalSalesAllTime += bill.total || 0;
+
+      // Total pending (sum of pending bills' outstanding amounts)
+      if (bill.status === 'Pending') {
+        const pending = Math.max(0, (bill.total || 0) - (bill.amountPaid || 0));
+        totalPendingAmountAllTime += pending;
+      }
+    });
+
+    return {
+      totalSalesAllTime: Math.round(totalSalesAllTime * 100) / 100,
+      totalPendingAmountAllTime: Math.round(totalPendingAmountAllTime * 100) / 100,
     };
   }
 }
