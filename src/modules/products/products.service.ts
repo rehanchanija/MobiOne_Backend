@@ -8,6 +8,7 @@ import { Model, Types } from 'mongoose';
 import { Product, ProductDocument } from '../schemas/product.schema';
 import { Brand, BrandDocument } from '../schemas/brand.schema';
 import { Category, CategoryDocument } from '../schemas/category.schema';
+import { Bill, BillDocument } from '../schemas/bill.schema';
 import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
 import { NotificationsService } from '../notifications/notifications.service';
@@ -20,6 +21,7 @@ export class ProductsService {
     @InjectModel(Brand.name) private readonly brandModel: Model<BrandDocument>,
     @InjectModel(Category.name)
     private readonly categoryModel: Model<CategoryDocument>,
+    @InjectModel(Bill.name) private readonly billModel: Model<BillDocument>,
     private notificationsService: NotificationsService,
   ) {}
 
@@ -245,6 +247,30 @@ export class ProductsService {
 
   async deleteProduct(id: string, userId?: string) {
     const objectId = this.ensureObjectId(id, 'id');
+    
+    // Get the product first to check stock and references
+    const product = await this.productModel.findById(objectId);
+    if (!product) throw new NotFoundException('Product not found');
+
+    // Check if product has stock greater than 0
+    if (product.stock > 0) {
+      throw new BadRequestException(
+        `Cannot delete product "${product.name}" - Product still has stock (${product.stock} units). Please sell all units before deletion.`
+      );
+    }
+
+    // Check if product has been used in any bill
+    const billWithProduct = await this.billModel.findOne({
+      'items.product': objectId,
+    }).lean();
+
+    if (billWithProduct) {
+      throw new BadRequestException(
+        `Cannot delete product "${product.name}" - Product has been used in bill #${billWithProduct.billNumber}. Products with bill history cannot be deleted.`
+      );
+    }
+
+    // Proceed with deletion
     const deleted = await this.productModel.findByIdAndDelete(objectId);
     if (!deleted) throw new NotFoundException('Product not found');
 
