@@ -498,4 +498,10 @@ private async generateBillNumber(userId: string): Promise<string> {
       totalPendingAmountAllTime: Math.round(totalPendingAmountAllTime * 100) / 100,
     };
   }
+
+  async getTotalBillsCount(userId: string): Promise<{ totalBills: number }> {
+    const userObjectId = new Types.ObjectId(userId);
+    const totalBills = await this.billModel.countDocuments({ userId: userObjectId });
+    return { totalBills };
+  }
 }

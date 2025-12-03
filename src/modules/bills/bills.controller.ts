@@ -52,6 +52,11 @@ export class BillsController {
     return this.billsService.getDashboardTotals(user._id.toString());
   }
 
+  @Get('total/count')
+  getTotalBillsCount(@GetUser() user: User) {
+    return this.billsService.getTotalBillsCount(user._id.toString());
+  }
+
   @Get()
   listBills(
     @GetUser() user: User,
