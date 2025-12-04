@@ -504,4 +504,94 @@ private async generateBillNumber(userId: string): Promise<string> {
     const totalBills = await this.billModel.countDocuments({ userId: userObjectId });
     return { totalBills };
   }
+
+  async getSalesReport(
+    timeFilter: 'day' | 'week' | 'month' | 'all',
+    userId: string,
+  ): Promise<{
+    totalSales: number;
+    totalOrders: number;
+    averageOrderValue: number;
+    totalCustomers: number;
+    totalProductsSold: number;
+    dailyStats: { date: string; sales: number; orders: number }[];
+    topProducts: { productId: string; name: string; quantity: number; revenue: number }[];
+    timeFilter: 'day' | 'week' | 'month' | 'all';
+  }> {
+    const now = new Date();
+    let start: Date | undefined;
+    const d = new Date(now);
+    if (timeFilter === 'day') {
+      start = new Date(d.getFullYear(), d.getMonth(), d.getDate(), 0, 0, 0, 0);
+    } else if (timeFilter === 'week') {
+      const day = d.getDay();
+      const diff = d.getDate() - day + (day === 0 ? -6 : 1); // Monday start
+      start = new Date(d.getFullYear(), d.getMonth(), diff, 0, 0, 0, 0);
+    } else if (timeFilter === 'month') {
+      start = new Date(d.getFullYear(), d.getMonth(), 1, 0, 0, 0, 0);
+    } else {
+      start = undefined;
+    }
+
+    const match: any = { userId: new Types.ObjectId(userId) };
+    if (start) {
+      match.createdAt = { $gte: start, $lte: now };
+    }
+
+    const bills = await this.billModel.find(match).lean();
+
+    const totalSales = bills.reduce((sum, b: any) => sum + (b.total || 0), 0);
+    const totalOrders = bills.length;
+    const averageOrderValue = totalOrders > 0 ? totalSales / totalOrders : 0;
+    const customerSet = new Set<string>(bills.map((b: any) => String(b.customer)));
+    const totalCustomers = customerSet.size;
+    const totalProductsSold = bills.reduce(
+      (sum, b: any) => sum + (Array.isArray(b.items) ? b.items.reduce((s: number, it: any) => s + (it.quantity || 0), 0) : 0),
+      0,
+    );
+
+    const productAgg: Record<string, { quantity: number; revenue: number }> = {};
+    for (const b of bills) {
+      for (const it of (b.items || [])) {
+        const pid = String(it.product);
+        const qty = Number(it.quantity || 0);
+        const rev = Number(it.price || 0) * qty;
+        if (!productAgg[pid]) productAgg[pid] = { quantity: 0, revenue: 0 };
+        productAgg[pid].quantity += qty;
+        productAgg[pid].revenue += rev;
+      }
+    }
+    const productIds = Object.keys(productAgg).map((id) => new Types.ObjectId(id));
+    const products = productIds.length
+      ? await this.productModel.find({ _id: { $in: productIds } }).select({ name: 1 }).lean()
+      : [];
+    const nameMap = new Map<string, string>(products.map((p: any) => [String(p._id), String(p.name || '')]));
+    const topProducts = Object.entries(productAgg)
+      .map(([productId, agg]) => ({ productId, name: nameMap.get(productId) || '', quantity: agg.quantity, revenue: agg.revenue }))
+      .sort((a, b) => b.quantity - a.quantity)
+      .slice(0, 10);
+
+    const dailyMap = new Map<string, { sales: number; orders: number }>();
+    for (const b of bills) {
+      const dstr = new Date(b.createdAt).toISOString().slice(0, 10);
+      const cur = dailyMap.get(dstr) || { sales: 0, orders: 0 };
+      cur.sales += Number(b.total || 0);
+      cur.orders += 1;
+      dailyMap.set(dstr, cur);
+    }
+    const dailyStats = Array.from(dailyMap.entries())
+      .sort((a, b) => (a[0] < b[0] ? -1 : 1))
+      .map(([date, v]) => ({ date, sales: v.sales, orders: v.orders }));
+
+    return {
+      totalSales,
+      totalOrders,
+      averageOrderValue,
+      totalCustomers,
+      totalProductsSold,
+      dailyStats,
+      topProducts,
+      timeFilter,
+    };
+  }
 }

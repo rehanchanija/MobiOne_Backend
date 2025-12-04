@@ -57,6 +57,12 @@ export class BillsController {
     return this.billsService.getTotalBillsCount(user._id.toString());
   }
 
+  @Get('sales-report')
+  getSalesReport(@GetUser() user: User, @Query('timeFilter') timeFilter?: 'day' | 'week' | 'month' | 'all') {
+    const tf = (timeFilter === 'day' || timeFilter === 'week' || timeFilter === 'month' || timeFilter === 'all') ? timeFilter : 'all';
+    return this.billsService.getSalesReport(tf, user._id.toString());
+  }
+
   @Get()
   listBills(
     @GetUser() user: User,
