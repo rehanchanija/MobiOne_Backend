@@ -247,7 +247,7 @@ export class ProductsService {
 
   async deleteProduct(id: string, userId?: string) {
     const objectId = this.ensureObjectId(id, 'id');
-    
+
     // Get the product first to check stock and references
     const product = await this.productModel.findById(objectId);
     if (!product) throw new NotFoundException('Product not found');
@@ -255,18 +255,20 @@ export class ProductsService {
     // Check if product has stock greater than 0
     if (product.stock > 0) {
       throw new BadRequestException(
-        `Cannot delete product "${product.name}" - Product still has stock (${product.stock} units). Please sell all units before deletion.`
+        `Cannot delete product "${product.name}" - Product still has stock (${product.stock} units). Please sell all units before deletion.`,
       );
     }
 
     // Check if product has been used in any bill
-    const billWithProduct = await this.billModel.findOne({
-      'items.product': objectId,
-    }).lean();
+    const billWithProduct = await this.billModel
+      .findOne({
+        'items.product': objectId,
+      })
+      .lean();
 
     if (billWithProduct) {
       throw new BadRequestException(
-        `Cannot delete product "${product.name}" - Product has been used in bill #${billWithProduct.billNumber}. Products with bill history cannot be deleted.`
+        `Cannot delete product "${product.name}" - Product has been used in bill #${billWithProduct.billNumber}. Products with bill history cannot be deleted.`,
       );
     }
 

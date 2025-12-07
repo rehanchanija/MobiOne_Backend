@@ -15,5 +15,3 @@ export class Brand {
 export const BrandSchema = SchemaFactory.createForClass(Brand);
 
 BrandSchema.index({ name: 1 }, { unique: true });
-
-

@@ -16,7 +16,8 @@ import { NotificationsService } from '../notifications/notifications.service';
 export class BrandsService {
   constructor(
     @InjectModel(Brand.name) private readonly brandModel: Model<BrandDocument>,
-    @InjectModel(Product.name) private readonly productModel: Model<ProductDocument>,
+    @InjectModel(Product.name)
+    private readonly productModel: Model<ProductDocument>,
     @InjectModel(Bill.name) private readonly billModel: Model<BillDocument>,
     private notificationsService: NotificationsService,
   ) {}
@@ -94,27 +95,31 @@ export class BrandsService {
 
   async remove(id: string, userId?: string) {
     const _id = this.ensureObjectId(id);
-    
+
     // Get the brand first to check for products and bill references
     const brand = await this.brandModel.findById(_id);
     if (!brand) throw new NotFoundException('Brand not found');
 
     // Check if brand has any products
-    const productsInBrand = await this.productModel.countDocuments({ brand: _id });
+    const productsInBrand = await this.productModel.countDocuments({
+      brand: _id,
+    });
     if (productsInBrand > 0) {
       throw new BadRequestException(
-        `Cannot delete brand "${brand.name}" - Brand has ${productsInBrand} product(s). Please delete all products before deleting the brand.`
+        `Cannot delete brand "${brand.name}" - Brand has ${productsInBrand} product(s). Please delete all products before deleting the brand.`,
       );
     }
 
     // Check if any bills contain products from this brand (through product references)
     const billsWithBrandProducts = await this.billModel.countDocuments({
-      'items.product': { $in: await this.productModel.find({ brand: _id }).select('_id') }
+      'items.product': {
+        $in: await this.productModel.find({ brand: _id }).select('_id'),
+      },
     });
 
     if (billsWithBrandProducts > 0) {
       throw new BadRequestException(
-        `Cannot delete brand "${brand.name}" - Brand has been used in bills. Brands with bill history cannot be deleted.`
+        `Cannot delete brand "${brand.name}" - Brand has been used in bills. Brands with bill history cannot be deleted.`,
       );
     }
 

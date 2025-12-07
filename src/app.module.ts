@@ -9,15 +9,13 @@ import { ProductsModule } from './modules/products/products.module';
 import { CategoriesModule } from './modules/categories/categories.module';
 import { BillsModule } from './modules/bills/bills.module';
 import { TransactionsModule } from './modules/transactions/transactions.module';
-
+import { DatabaseModule } from './database.module';
 @Module({
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
     }),
-    MongooseModule.forRoot(
-      process.env.MONGODB_URI || 'mongodb://localhost:27017/mobione',
-    ),
+    DatabaseModule,
     AuthModule,
     BrandsModule,
     ProductsModule,

@@ -30,5 +30,3 @@ export class Product {
 export const ProductSchema = SchemaFactory.createForClass(Product);
 
 ProductSchema.index({ name: 1, brand: 1 }, { unique: false });
-
-

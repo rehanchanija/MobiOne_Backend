@@ -7,5 +7,3 @@ export class UpdateCategoryDto extends PartialType(CreateCategoryDto) {
   @MinLength(2)
   name?: string;
 }
-
-

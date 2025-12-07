@@ -53,42 +53,42 @@ export class BillsService {
 
   // Generate bill number: shopname-YYYYMMDD-serialnumber (e.g., raza-20251111-01)
   // Replace the old generateBillNumber with this version
-private async generateBillNumber(userId: string): Promise<string> {
-  // Get user to retrieve shop name
-  const user = await this.userModel.findById(userId).lean();
-  if (!user || !user.shopName) {
-    throw new BadRequestException('User shop name not found');
+  private async generateBillNumber(userId: string): Promise<string> {
+    // Get user to retrieve shop name
+    const user = await this.userModel.findById(userId).lean();
+    if (!user || !user.shopName) {
+      throw new BadRequestException('User shop name not found');
+    }
+
+    // Year string e.g., 2025
+    const today = new Date();
+    const yearStr = String(today.getFullYear());
+
+    // Determine start and end of the current year
+    const startOfYear = new Date(today.getFullYear(), 0, 1, 0, 0, 0, 0);
+    const endOfYear = new Date(today.getFullYear(), 11, 31, 23, 59, 59, 999);
+
+    // Count bills for this user created within this year
+    const billCountThisYear = await this.billModel.countDocuments({
+      userId: new Types.ObjectId(userId),
+      createdAt: { $gte: startOfYear, $lte: endOfYear },
+    });
+
+    // Serial number starts from 0001 for the year
+    const serialNumber = String(billCountThisYear + 1).padStart(4, '0');
+
+    // Sanitize shop name: lowercase, replace spaces with hyphens, remove non-alphanum/hyphen
+    const shopSlug = String(user.shopName)
+      .toLowerCase()
+      .trim()
+      .replace(/\s+/g, '-')
+      .replace(/[^a-z0-9\-]/g, '');
+
+    // Format: shopname-YYYY-serialnumber (e.g., raza-2025-0001)
+    const billNumber = `${shopSlug}-${yearStr}-${serialNumber}`;
+
+    return billNumber;
   }
-
-  // Year string e.g., 2025
-  const today = new Date();
-  const yearStr = String(today.getFullYear());
-
-  // Determine start and end of the current year
-  const startOfYear = new Date(today.getFullYear(), 0, 1, 0, 0, 0, 0);
-  const endOfYear = new Date(today.getFullYear(), 11, 31, 23, 59, 59, 999);
-
-  // Count bills for this user created within this year
-  const billCountThisYear = await this.billModel.countDocuments({
-    userId: new Types.ObjectId(userId),
-    createdAt: { $gte: startOfYear, $lte: endOfYear },
-  });
-
-  // Serial number starts from 0001 for the year
-  const serialNumber = String(billCountThisYear + 1).padStart(4, '0');
-
-  // Sanitize shop name: lowercase, replace spaces with hyphens, remove non-alphanum/hyphen
-  const shopSlug = String(user.shopName)
-    .toLowerCase()
-    .trim()
-    .replace(/\s+/g, '-')
-    .replace(/[^a-z0-9\-]/g, '');
-
-  // Format: shopname-YYYY-serialnumber (e.g., raza-2025-0001)
-  const billNumber = `${shopSlug}-${yearStr}-${serialNumber}`;
-
-  return billNumber;
-}
 
   async createBill(dto: CreateBillDto, userId: string) {
     if (!dto.items?.length) throw new BadRequestException('Items are required');
@@ -186,7 +186,7 @@ private async generateBillNumber(userId: string): Promise<string> {
     try {
       const customer = await this.customerModel.findById(customerId).lean();
       const remainingAmount = Math.max(0, total - amountPaid);
-      
+
       await this.transactionsService.create({
         userId,
         billId: bill._id.toString(),
@@ -367,7 +367,10 @@ private async generateBillNumber(userId: string): Promise<string> {
     }
 
     try {
-      const remainingAmount = Math.max(0, (updatedBill as any).total - (updatedBill as any).amountPaid);
+      const remainingAmount = Math.max(
+        0,
+        (updatedBill as any).total - (updatedBill as any).amountPaid,
+      );
       const customerName = (updatedBill as any).customer?.name || 'Unknown';
       const customerPhone = (updatedBill as any).customer?.phone || '';
       await this.transactionsService.create({
@@ -474,9 +477,7 @@ private async generateBillNumber(userId: string): Promise<string> {
     const userObjectId = new Types.ObjectId(userId);
 
     // Get all bills for this user
-    const bills = await this.billModel
-      .find({ userId: userObjectId })
-      .lean();
+    const bills = await this.billModel.find({ userId: userObjectId }).lean();
 
     // Calculate totals
     let totalSalesAllTime = 0;
@@ -495,13 +496,16 @@ private async generateBillNumber(userId: string): Promise<string> {
 
     return {
       totalSalesAllTime: Math.round(totalSalesAllTime * 100) / 100,
-      totalPendingAmountAllTime: Math.round(totalPendingAmountAllTime * 100) / 100,
+      totalPendingAmountAllTime:
+        Math.round(totalPendingAmountAllTime * 100) / 100,
     };
   }
 
   async getTotalBillsCount(userId: string): Promise<{ totalBills: number }> {
     const userObjectId = new Types.ObjectId(userId);
-    const totalBills = await this.billModel.countDocuments({ userId: userObjectId });
+    const totalBills = await this.billModel.countDocuments({
+      userId: userObjectId,
+    });
     return { totalBills };
   }
 
@@ -515,7 +519,12 @@ private async generateBillNumber(userId: string): Promise<string> {
     totalCustomers: number;
     totalProductsSold: number;
     dailyStats: { date: string; sales: number; orders: number }[];
-    topProducts: { productId: string; name: string; quantity: number; revenue: number }[];
+    topProducts: {
+      productId: string;
+      name: string;
+      quantity: number;
+      revenue: number;
+    }[];
     timeFilter: 'day' | 'week' | 'month' | 'all';
   }> {
     const now = new Date();
@@ -543,16 +552,23 @@ private async generateBillNumber(userId: string): Promise<string> {
     const totalSales = bills.reduce((sum, b: any) => sum + (b.total || 0), 0);
     const totalOrders = bills.length;
     const averageOrderValue = totalOrders > 0 ? totalSales / totalOrders : 0;
-    const customerSet = new Set<string>(bills.map((b: any) => String(b.customer)));
+    const customerSet = new Set<string>(
+      bills.map((b: any) => String(b.customer)),
+    );
     const totalCustomers = customerSet.size;
     const totalProductsSold = bills.reduce(
-      (sum, b: any) => sum + (Array.isArray(b.items) ? b.items.reduce((s: number, it: any) => s + (it.quantity || 0), 0) : 0),
+      (sum, b: any) =>
+        sum +
+        (Array.isArray(b.items)
+          ? b.items.reduce((s: number, it: any) => s + (it.quantity || 0), 0)
+          : 0),
       0,
     );
 
-    const productAgg: Record<string, { quantity: number; revenue: number }> = {};
+    const productAgg: Record<string, { quantity: number; revenue: number }> =
+      {};
     for (const b of bills) {
-      for (const it of (b.items || [])) {
+      for (const it of b.items || []) {
         const pid = String(it.product);
         const qty = Number(it.quantity || 0);
         const rev = Number(it.price || 0) * qty;
@@ -561,13 +577,25 @@ private async generateBillNumber(userId: string): Promise<string> {
         productAgg[pid].revenue += rev;
       }
     }
-    const productIds = Object.keys(productAgg).map((id) => new Types.ObjectId(id));
+    const productIds = Object.keys(productAgg).map(
+      (id) => new Types.ObjectId(id),
+    );
     const products = productIds.length
-      ? await this.productModel.find({ _id: { $in: productIds } }).select({ name: 1 }).lean()
+      ? await this.productModel
+          .find({ _id: { $in: productIds } })
+          .select({ name: 1 })
+          .lean()
       : [];
-    const nameMap = new Map<string, string>(products.map((p: any) => [String(p._id), String(p.name || '')]));
+    const nameMap = new Map<string, string>(
+      products.map((p: any) => [String(p._id), String(p.name || '')]),
+    );
     const topProducts = Object.entries(productAgg)
-      .map(([productId, agg]) => ({ productId, name: nameMap.get(productId) || '', quantity: agg.quantity, revenue: agg.revenue }))
+      .map(([productId, agg]) => ({
+        productId,
+        name: nameMap.get(productId) || '',
+        quantity: agg.quantity,
+        revenue: agg.revenue,
+      }))
       .sort((a, b) => b.quantity - a.quantity)
       .slice(0, 10);
 
