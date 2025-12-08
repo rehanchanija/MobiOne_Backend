@@ -1,5 +1,4 @@
 import { Module } from '@nestjs/common';
-import { MongooseModule } from '@nestjs/mongoose';
 import { BillsService } from './bills.service';
 import { BillsController } from './bills.controller';
 import { AuthModule } from '../auth/auth.module';
