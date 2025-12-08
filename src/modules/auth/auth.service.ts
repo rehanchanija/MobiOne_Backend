@@ -39,14 +39,31 @@ export class AuthService {
 
     await newUser.save();
     const payload = { sub: newUser._id, email: newUser.email };
-    const token = await this.jwtService.signAsync(payload, {
+    const accessToken = await this.jwtService.signAsync(payload, {
       secret: process.env.JWT_SECRET || 'mySecretKey',
-      expiresIn: '1h',
+      expiresIn: '15m',
     });
+
+    const refreshToken = await this.jwtService.signAsync(payload, {
+      secret: process.env.JWT_REFRESH_SECRET || 'myRefreshSecret',
+      expiresIn: '90d',
+    });
+
+    // Store refresh token for rotation
+    await this.userModel.updateOne({ _id: newUser._id }, { refreshToken });
+
     return {
       message: 'User registered successfully',
-      userId: newUser._id,
-      token,
+      access_token: accessToken,
+      refresh_token: refreshToken,
+      user: {
+        id: newUser._id,
+        name: newUser.name,
+        email: newUser.email,
+        phone: newUser.phone,
+        shopName: newUser.shopName,
+        shopDetails: newUser.shopDetails,
+      },
     };
   }
 
