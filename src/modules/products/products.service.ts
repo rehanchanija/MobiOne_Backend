@@ -171,30 +171,6 @@ export class ProductsService {
     );
     if (!product) throw new NotFoundException('Product not found');
 
-    // Create PRODUCT_UPDATED notification
-    if (userId) {
-      try {
-        const brand = await this.brandModel.findById(product.brand).lean();
-        await this.notificationsService.createNotification({
-          userId,
-          type: 'PRODUCT_UPDATED',
-          title: 'Product Updated',
-          message: `Product "${product.name}" has been updated`,
-          data: {
-            productId: (product._id as Types.ObjectId).toString(),
-            productName: product.name,
-            brandId: brand
-              ? (brand._id as Types.ObjectId).toString()
-              : undefined,
-            brandName: brand?.name,
-          },
-        });
-      } catch (err) {
-        // Log error but don't fail product update if notification fails
-        console.error('Failed to create PRODUCT_UPDATED notification:', err);
-      }
-    }
-
     // Check if stock was updated and is now at or below 5
     if (dto.stock !== undefined && product.stock <= 5 && oldProduct.stock > 5) {
       if (userId) {
