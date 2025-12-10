@@ -122,27 +122,6 @@ export class ProductsService {
       { $addToSet: { products: created._id } },
     );
 
-    // Create PRODUCT_CREATED notification
-    if (userId) {
-      try {
-        await this.notificationsService.createNotification({
-          userId,
-          type: 'PRODUCT_CREATED',
-          title: 'New Product Created',
-          message: `Product "${created.name}" has been created under brand "${brand.name}"`,
-          data: {
-            productId: (created._id as Types.ObjectId).toString(),
-            productName: created.name,
-            brandId: (brand._id as Types.ObjectId).toString(),
-            brandName: brand.name,
-          },
-        });
-      } catch (err) {
-        // Log error but don't fail product creation if notification fails
-        console.error('Failed to create PRODUCT_CREATED notification:', err);
-      }
-    }
-
     return created.toObject();
   }
 
@@ -285,30 +264,6 @@ export class ProductsService {
       { _id: deleted.category },
       { $pull: { products: deleted._id } },
     );
-
-    // Create PRODUCT_DELETED notification
-    if (userId) {
-      try {
-        const brand = await this.brandModel.findById(deleted.brand).lean();
-        await this.notificationsService.createNotification({
-          userId,
-          type: 'PRODUCT_DELETED',
-          title: 'Product Deleted',
-          message: `Product "${deleted.name}" has been deleted`,
-          data: {
-            productId: (deleted._id as Types.ObjectId).toString(),
-            productName: deleted.name,
-            brandId: brand
-              ? (brand._id as Types.ObjectId).toString()
-              : undefined,
-            brandName: brand?.name,
-          },
-        });
-      } catch (err) {
-        // Log error but don't fail product deletion if notification fails
-        console.error('Failed to create PRODUCT_DELETED notification:', err);
-      }
-    }
 
     return { success: true };
   }

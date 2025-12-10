@@ -5,23 +5,15 @@ export type NotificationDocument = Document & {
   _id: Types.ObjectId;
   userId: Types.ObjectId;
   type:
-    | 'PRODUCT_CREATED'
-    | 'PRODUCT_UPDATED'
-    | 'PRODUCT_DELETED'
     | 'LOW_STOCK'
     | 'PAYMENT_PENDING'
-    | 'BILL_CREATED'
-    | 'BRAND_CREATED'
-    | 'BRAND_UPDATED'
-    | 'BRAND_DELETED';
+    | 'BILL_CREATED';
   title: string;
   message: string;
   data: {
     productId?: string;
-    brandId?: string;
     billId?: string;
     productName?: string;
-    brandName?: string;
     currentStock?: number;
     minimumStock?: number;
     pendingAmount?: number;
@@ -39,15 +31,9 @@ export class Notification {
 
   @Prop({
     enum: [
-      'PRODUCT_CREATED',
-      'PRODUCT_UPDATED',
-      'PRODUCT_DELETED',
       'LOW_STOCK',
       'PAYMENT_PENDING',
       'BILL_CREATED',
-      'BRAND_CREATED',
-      'BRAND_UPDATED',
-      'BRAND_DELETED',
     ],
     required: true,
     index: true,

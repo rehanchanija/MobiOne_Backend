@@ -9,15 +9,9 @@ import {
 export interface CreateNotificationDto {
   userId: string;
   type:
-    | 'PRODUCT_CREATED'
-    | 'PRODUCT_UPDATED'
-    | 'PRODUCT_DELETED'
     | 'LOW_STOCK'
     | 'PAYMENT_PENDING'
-    | 'BILL_CREATED'
-    | 'BRAND_CREATED'
-    | 'BRAND_UPDATED'
-    | 'BRAND_DELETED';
+    | 'BILL_CREATED';
   title: string;
   message: string;
   data?: Record<string, any>;
