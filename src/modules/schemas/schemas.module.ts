@@ -7,6 +7,7 @@ import { Category, CategorySchema } from './category.schema';
 import { Bill, BillSchema } from './bill.schema';
 import { Customer, CustomerSchema } from './customer.schema';
 import { Transaction, TransactionSchema } from './transaction.schema';
+import { Counter, CounterSchema } from './counter.schema';
 
 @Module({
   imports: [
@@ -18,6 +19,7 @@ import { Transaction, TransactionSchema } from './transaction.schema';
       { name: Bill.name, schema: BillSchema },
       { name: Customer.name, schema: CustomerSchema },
       { name: Transaction.name, schema: TransactionSchema },
+      { name: Counter.name, schema: CounterSchema },
     ]),
   ],
   exports: [MongooseModule],

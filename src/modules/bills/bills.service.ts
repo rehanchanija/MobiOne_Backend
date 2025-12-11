@@ -10,6 +10,7 @@ import { Customer, CustomerDocument } from '../schemas/customer.schema';
 import { Product, ProductDocument } from '../schemas/product.schema';
 import { Brand, BrandDocument } from '../schemas/brand.schema';
 import { User, UserDocument } from '../schemas/user.schema';
+import { Counter, CounterDocument } from '../schemas/counter.schema';
 import { NotificationsService } from '../notifications/notifications.service';
 import { TransactionsService } from '../transactions/transactions.service';
 
@@ -39,6 +40,7 @@ export class BillsService {
     @InjectModel(Product.name) private productModel: Model<ProductDocument>,
     @InjectModel(Brand.name) private brandModel: Model<BrandDocument>,
     @InjectModel(User.name) private userModel: Model<UserDocument>,
+    @InjectModel(Counter.name) private counterModel: Model<CounterDocument>,
     private notificationsService: NotificationsService,
     private transactionsService: TransactionsService,
   ) {}
@@ -52,7 +54,7 @@ export class BillsService {
   }
 
   // Generate bill number: shopname-YYYYMMDD-serialnumber (e.g., raza-20251111-01)
-  // Bill number generation - counts actual bills for this year
+  // Optimized bill number generation using Counter collection
   private async generateBillNumber(userId: string): Promise<string> {
     // Get user to retrieve shop name
     const user = await this.userModel.findById(userId).lean();
@@ -60,23 +62,26 @@ export class BillsService {
       throw new BadRequestException('User shop name not found');
     }
 
-    // Year string e.g., 2025
     const today = new Date();
     const yearStr = String(today.getFullYear());
     const currentYear = today.getFullYear();
 
-    // Determine start and end of the current year
-    const startOfYear = new Date(currentYear, 0, 1, 0, 0, 0, 0);
-    const endOfYear = new Date(currentYear, 11, 31, 23, 59, 59, 999);
+    // Atomic increment using findByIdAndUpdate on Counter
+    const counter = await this.counterModel.findOneAndUpdate(
+      {
+        userId: new Types.ObjectId(userId),
+        year: currentYear,
+      },
+      { $inc: { count: 1 } },
+      { upsert: true, new: true, lean: true },
+    );
 
-    // Count actual bills created this year for this user
-    const billCountThisYear = await this.billModel.countDocuments({
-      userId: new Types.ObjectId(userId),
-      createdAt: { $gte: startOfYear, $lte: endOfYear },
-    });
+    if (!counter) {
+      throw new BadRequestException('Failed to generate bill number');
+    }
 
-    // Serial number is count + 1 (next bill number)
-    const serialNumber = String(billCountThisYear + 1).padStart(4, '0');
+    // Serial number from counter
+    const serialNumber = String(counter.count).padStart(4, '0');
 
     // Sanitize shop name: lowercase, replace spaces with hyphens, remove non-alphanum/hyphen
     const shopSlug = String(user.shopName)
