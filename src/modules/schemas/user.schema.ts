@@ -23,12 +23,6 @@ export class User {
   @Prop({ default: null })
   shopDetails?: string;
 
-  @Prop({ default: 0 })
-  billNumberCounter: number;
-
-  @Prop({ default: new Date().getFullYear() })
-  billNumberYear: number;
-
   @Prop()
   refreshToken?: string;
 

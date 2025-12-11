@@ -52,7 +52,7 @@ export class BillsService {
   }
 
   // Generate bill number: shopname-YYYYMMDD-serialnumber (e.g., raza-20251111-01)
-  // Atomic bill number generation using a counter stored in user document
+  // Bill number generation - counts actual bills for this year
   private async generateBillNumber(userId: string): Promise<string> {
     // Get user to retrieve shop name
     const user = await this.userModel.findById(userId).lean();
@@ -65,38 +65,18 @@ export class BillsService {
     const yearStr = String(today.getFullYear());
     const currentYear = today.getFullYear();
 
-    // Atomic counter update: increment billNumberCounter if year matches, or reset if year changed
-    const updatedUser = await this.userModel.findByIdAndUpdate(
-      userId,
-      [
-        {
-          $set: {
-            billNumberYear: {
-              $cond: [
-                { $eq: ['$billNumberYear', currentYear] },
-                '$billNumberYear',
-                currentYear,
-              ],
-            },
-            billNumberCounter: {
-              $cond: [
-                { $eq: ['$billNumberYear', currentYear] },
-                { $add: ['$billNumberCounter', 1] },
-                1,
-              ],
-            },
-          },
-        },
-      ],
-      { new: true, lean: true },
-    );
+    // Determine start and end of the current year
+    const startOfYear = new Date(currentYear, 0, 1, 0, 0, 0, 0);
+    const endOfYear = new Date(currentYear, 11, 31, 23, 59, 59, 999);
 
-    if (!updatedUser) {
-      throw new BadRequestException('Failed to update bill counter');
-    }
+    // Count actual bills created this year for this user
+    const billCountThisYear = await this.billModel.countDocuments({
+      userId: new Types.ObjectId(userId),
+      createdAt: { $gte: startOfYear, $lte: endOfYear },
+    });
 
-    // Serial number from counter
-    const serialNumber = String(updatedUser.billNumberCounter).padStart(4, '0');
+    // Serial number is count + 1 (next bill number)
+    const serialNumber = String(billCountThisYear + 1).padStart(4, '0');
 
     // Sanitize shop name: lowercase, replace spaces with hyphens, remove non-alphanum/hyphen
     const shopSlug = String(user.shopName)
